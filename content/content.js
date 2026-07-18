@@ -229,17 +229,27 @@ INSERT INTO forage VALUES
   // Seeded event pool: the scheduler draws deterministically per GAME_VERSION.
   // effects are deltas applied to run state.
   const EVENTS = [
-    { id: 'river',    text: 'River crossing. The ferry operator charges $40.', effects: { money: -40 } },
-    { id: 'axle',     text: 'A wagon axle cracks on rocky ground.', effects: { parts: -1, morale: -5 } },
-    { id: 'rain',     text: 'Three days of rain. 20 lbs of food spoils.', effects: { food: -20, morale: -5 } },
-    { id: 'fever',    text: 'Ada has a fever. She loses 15 health.', effects: { health: [-0, -15, -0, -0] } },
-    { id: 'berries',  text: 'Wild berries near the trail. +10 lbs food.', effects: { food: 10, morale: 5 } },
-    { id: 'trader',   text: 'A trader buys your spare rope. +$15.', effects: { money: 15 } },
-    { id: 'oxen',     text: 'An ox goes lame. You slow down and lose 2 days.', effects: { days: 2, morale: -5 } },
-    { id: 'dust',     text: 'Dust storm. Everyone loses 5 health.', effects: { health: [-5, -5, -5, -5] } },
-    { id: 'wheel',    text: 'Wheel shatters in a rut.', effects: { parts: -1 } },
-    { id: 'good_water', text: 'Clean spring water. Everyone gains 5 health.', effects: { health: [5, 5, 5, 5], morale: 5 } },
+    { id: 'river',    icon: '🌊', text: 'River crossing. The ferry operator charges $40.', effects: { money: -40 } },
+    { id: 'axle',     icon: '🛞', text: 'A wagon axle cracks on rocky ground.', effects: { parts: -1, morale: -5 } },
+    { id: 'rain',     icon: '🌧️', text: 'Three days of rain. 20 lbs of food spoils.', effects: { food: -20, morale: -5 } },
+    { id: 'fever',    icon: '🤒', text: 'Ada has a fever. She loses 15 health.', effects: { health: [-0, -15, -0, -0] } },
+    { id: 'berries',  icon: '🫐', text: 'Wild berries near the trail. +10 lbs food.', effects: { food: 10, morale: 5 } },
+    { id: 'trader',   icon: '🤝', text: 'A trader buys your spare rope. +$15.', effects: { money: 15 } },
+    { id: 'oxen',     icon: '🐂', text: 'An ox goes lame. You slow down and lose 2 days.', effects: { days: 2, morale: -5 } },
+    { id: 'dust',     icon: '🌪️', text: 'Dust storm. Everyone loses 5 health.', effects: { health: [-5, -5, -5, -5] } },
+    { id: 'wheel',    icon: '🛞', text: 'Wheel shatters in a rut.', effects: { parts: -1 } },
+    { id: 'good_water', icon: '💧', text: 'Clean spring water. Everyone gains 5 health.', effects: { health: [5, 5, 5, 5], morale: 5 } },
   ];
+
+  // Item icons shown next to values in result grids (simple graphical wins).
+  const ITEM_ICONS = {
+    'flour': '🌾', 'bacon': '🥓', 'dried apples': '🍎', 'coffee': '☕',
+    'salt pork': '🥩', 'cornmeal': '🌽', 'lard': '🧈', 'rope': '🪢',
+    'wagon wheel': '🛞', 'wagon axle': '⚙️', 'wagon tongue': '🪵', 'oxen shoe': '🐂',
+    'medicine kit': '💊', 'bandages': '🩹',
+    'food': '🌾', 'parts': '🔧', 'medicine': '💊',
+    'Fort Kearny': '🏕️', 'Fort Laramie': '🏕️', 'Fort Bridger': '🏕️',
+  };
 
   const EPITAPHS = [
     'died of a Cartesian product',
@@ -250,7 +260,7 @@ INSERT INTO forage VALUES
     'never did commit',
   ];
 
-  const CONTENT = { GAME_VERSION, SEED_SQL, FORAGE_SQL, STOPS, EVENTS, EPITAPHS };
+  const CONTENT = { GAME_VERSION, SEED_SQL, FORAGE_SQL, STOPS, EVENTS, EPITAPHS, ITEM_ICONS };
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT;
   else root.TrailContent = CONTENT;
 })(typeof self !== 'undefined' ? self : this);

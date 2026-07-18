@@ -235,17 +235,18 @@ function toast(msg) {
 
 function statbar() {
   const br = E.burnRate(run);
+  const face = run.morale >= 70 ? '😄' : run.morale >= 40 ? '😐' : '😟';
   return `<div class="panel statbar">
-    <span>Day <b>${run.day}</b></span>
-    <span>Food <b>${run.food}</b> lbs</span>
-    <span>Parts <b>${run.parts}</b></span>
-    <span>Meds <b>${run.medicine}</b></span>
-    <span>$<b>${run.money}</b></span>
-    <span>Morale <b>${run.morale}</b></span>
+    <span>📅 Day <b>${run.day}</b></span>
+    <span>🌾 <b>${run.food}</b> lbs</span>
+    <span>🔧 <b>${run.parts}</b></span>
+    <span>💊 <b>${run.medicine}</b></span>
+    <span>💰 $<b>${run.money}</b></span>
+    <span>${face} <b>${run.morale}</b></span>
     <span class="dim">Food lasts ~${br.legsOfFood} legs</span>
     <span style="flex-basis:100%;height:0"></span>
     ${run.party.map(m =>
-      m.alive ? `<span class="dim">${esc(m.name)} <b class="amber">${m.health}</b></span>`
+      m.alive ? `<span class="dim">${esc(m.name)} ❤️<b class="amber">${m.health}</b></span>`
               : `<span class="red">${esc(m.name)} ✝</span>`).join('')}
   </div>`;
 }
@@ -515,7 +516,7 @@ function renderRows(res) {
     `<tr><td class="dim gridnum">${i + 1}</td>` + r.map(v =>
       v === null ? '<td><span class="dim">NULL</span></td>'
       : typeof v === 'number' ? `<td class="gridnum">${esc(v)}</td>`
-      : `<td>${esc(v)}</td>`).join('') + '</tr>').join('');
+      : `<td>${C.ITEM_ICONS[v] ? C.ITEM_ICONS[v] + ' ' : ''}${esc(v)}</td>`).join('') + '</tr>').join('');
   const more = res.values.length > 50 ? `<p class="dim">…${res.values.length - 50} more rows</p>` : '';
   return `<table>${head}${body}</table>${more}`;
 }

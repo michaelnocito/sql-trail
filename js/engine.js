@@ -100,12 +100,13 @@
     const event = run.schedule[run.stop];
     if (event) {
       // Breakdown events consume a part if you have one, else cost days.
+      const icon = event.icon ? event.icon + ' ' : '';
       if (event.effects.parts && run.parts <= 0 && event.effects.parts < 0) {
         run.day += 3;
-        run.log.push({ day: run.day, text: event.text + ' No spare — you lose 3 days improvising.' });
+        run.log.push({ day: run.day, text: icon + event.text + ' No spare — you lose 3 days improvising.' });
         applyEffects(run, { ...event.effects, parts: 0, days: 0 });
       } else {
-        run.log.push({ day: run.day, text: event.text });
+        run.log.push({ day: run.day, text: icon + event.text });
         applyEffects(run, event.effects);
       }
     }
