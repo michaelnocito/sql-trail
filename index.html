@@ -61,7 +61,7 @@
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
   .CodeMirror.cm-s-trail {
     background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
-    height: auto; min-height: 120px; font-family: Consolas, "Courier New", monospace;
+    height: auto; min-height: 84px; font-family: Consolas, "Courier New", monospace;
     font-size: 15px; text-shadow: none;
   }
   .cm-s-trail .CodeMirror-lines { padding: 8px 0; }
@@ -100,12 +100,12 @@
   .msgline.err { color: var(--red); }
 
   /* --- Object Explorer: schema tree like SSMS/DBeaver --- */
-  .workbench { display: flex; gap: 10px; align-items: stretch; }
+  .workbench { display: flex; gap: 10px; align-items: flex-start; }
   .workbench .edcol { flex: 1 1 420px; min-width: 0; }
   #objx {
-    flex: 0 0 200px; background: #0d0d0b; border: 1px solid var(--dim);
+    flex: 0 0 190px; background: #0d0d0b; border: 1px solid var(--dim);
     font-family: Consolas, monospace; font-size: .85em; text-shadow: none;
-    color: #cccccc; padding: 6px; overflow: auto; max-height: 340px;
+    color: #cccccc; padding: 6px; overflow: auto; max-height: 300px;
   }
   #objx .oxhead { color: var(--amber); border-bottom: 1px solid #222;
     padding-bottom: 4px; margin-bottom: 4px; }
@@ -116,9 +116,21 @@
   #objx .oxtype { color: #666; }
   #objx .oxnew { color: var(--fg); }
   @media (max-width: 640px) {
-    .workbench { flex-direction: column; }
-    #objx { flex: none; max-height: 160px; }
+    .workbench { flex-direction: column; gap: 6px; }
+    #objx { flex: none; max-height: 130px; width: 100%; }
+    #app { padding: 8px 8px 30px; }
+    body { font-size: 14px; }
+    .panel { padding: 8px; margin: 8px 0; }
+    .outpane { max-height: 220px; }
   }
+
+  /* Slim dark scrollbars everywhere inside the game panes */
+  #objx, .outpane, .trailmap { scrollbar-width: thin; scrollbar-color: #333 #0d0d0b; }
+  #objx::-webkit-scrollbar, .outpane::-webkit-scrollbar, .trailmap::-webkit-scrollbar { width: 8px; height: 8px; }
+  #objx::-webkit-scrollbar-track, .outpane::-webkit-scrollbar-track, .trailmap::-webkit-scrollbar-track { background: #0d0d0b; }
+  #objx::-webkit-scrollbar-thumb, .outpane::-webkit-scrollbar-thumb, .trailmap::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  /* CodeMirror wraps lines; kill its native scrollbar chrome entirely */
+  .CodeMirror-hscrollbar, .CodeMirror-vscrollbar, .CodeMirror-scrollbar-filler { display: none !important; }
 </style>
 </head>
 <body>
@@ -230,10 +242,10 @@ function statbar() {
     <span>$<b>${run.money}</b></span>
     <span>Morale <b>${run.morale}</b></span>
     <span class="dim">Food lasts ~${br.legsOfFood} legs</span>
-  </div>
-  <div class="panel statbar">${run.party.map(m =>
-    m.alive ? `<span>${esc(m.name)} <b>${m.health}</b></span>`
-            : `<span class="red">${esc(m.name)} ✝</span>`).join('')}
+    <span style="flex-basis:100%;height:0"></span>
+    ${run.party.map(m =>
+      m.alive ? `<span class="dim">${esc(m.name)} <b class="amber">${m.health}</b></span>`
+              : `<span class="red">${esc(m.name)} ✝</span>`).join('')}
   </div>`;
 }
 
