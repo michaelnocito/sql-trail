@@ -347,8 +347,14 @@ function startStop() {
 function screenQuestion() {
   const stop = C.STOPS[run.stop - 1];
   const q = stop.questions[qState.idx];
-  const hints = q.hints.slice(0, qState.hintsShown).map((h, i) =>
-    `<div class="dim">Hint ${i + 1}: ${esc(h)}</div>`).join('');
+  // Hints 1-2 are nudges; hint 3 is the full answer, ready to copy or paste.
+  const hints = q.hints.slice(0, Math.min(qState.hintsShown, 2)).map((h, i) =>
+    `<div class="dim">Hint ${i + 1}: ${esc(h)}</div>`).join('')
+    + (qState.hintsShown >= 3 ? `
+      <div class="dim">Hint 3 — the full answer:</div>
+      <div style="border:1px solid var(--dim);background:#0d0d0b;padding:8px;font-family:Consolas,monospace;text-shadow:none;color:#d4d4d4">${esc(q.answer)}</div>
+      <button style="min-height:34px;padding:4px 12px" onclick="copyAnswer()">Copy</button>
+      <button style="min-height:34px;padding:4px 12px" onclick="pasteAnswer()">Paste into editor</button>` : '');
   const nextHintCost = E.hintCost(qState.hintsShown);
   app.innerHTML = `
     ${trailMap()}${statbar()}
@@ -366,7 +372,7 @@ function screenQuestion() {
       <div>
         <button onclick="submitAnswer()">▶ Execute</button>
         <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
-          Hint ${qState.hintsShown + 1}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
+          ${qState.hintsShown >= 2 ? 'Show answer' : `Hint ${qState.hintsShown + 1}`}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
         </button>
         <button onclick="skipQuestion()">Give up (−health)</button>
       </div>
@@ -384,6 +390,18 @@ function guideBlurb(concept) {
     'Aggregates + GROUP BY / HAVING': 'COUNT/SUM/AVG collapse many rows into one; GROUP BY makes one row per group; HAVING filters the groups.',
   };
   return g[concept] || concept;
+}
+
+function currentAnswer() {
+  return C.STOPS[run.stop - 1].questions[qState.idx].answer;
+}
+function copyAnswer() {
+  navigator.clipboard.writeText(currentAnswer())
+    .then(() => toast('Answer copied.'))
+    .catch(() => toast('Copy blocked — use Paste into editor instead.'));
+}
+function pasteAnswer() {
+  if (editor) { editor.setValue(currentAnswer()); editor.focus(); }
 }
 
 function takeHint() {
