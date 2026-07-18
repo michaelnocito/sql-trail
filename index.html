@@ -61,7 +61,7 @@
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
   .CodeMirror.cm-s-trail {
     background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
-    height: auto; min-height: 240px; font-family: Consolas, "Courier New", monospace;
+    height: auto; min-height: 140px; font-family: Consolas, "Courier New", monospace;
     font-size: 15px; text-shadow: none;
   }
   .cm-s-trail .CodeMirror-lines { padding: 8px 0; }
@@ -99,27 +99,17 @@
   .msgline { font-size: .9em; color: #cccccc; text-shadow: none; font-family: Consolas, monospace; }
   .msgline.err { color: var(--red); }
 
-  /* --- Object Explorer: schema tree like SSMS/DBeaver --- */
-  .workbench { display: flex; gap: 10px; align-items: flex-start; }
-  .workbench .edcol { flex: 1 1 420px; min-width: 0; }
-  #objx {
-    flex: 0 0 190px; background: #0d0d0b; border: 1px solid var(--dim);
-    font-family: Consolas, monospace; font-size: .85em; text-shadow: none;
-    color: #cccccc; padding: 6px; overflow: auto; max-height: 244px;
+  /* --- Schema strip: just the tables this question needs --- */
+  .schemastrip {
+    background: #0d0d0b; border: 1px solid var(--dim); margin-top: 6px;
+    padding: 6px 8px; font-family: Consolas, monospace; font-size: .85em;
+    text-shadow: none; color: #cccccc;
   }
-  #objx .oxhead { color: var(--amber); border-bottom: 1px solid #222;
-    padding-bottom: 4px; margin-bottom: 4px; }
-  #objx details { margin: 2px 0 2px 4px; }
-  #objx summary { cursor: pointer; color: #dcdcaa; }
-  #objx summary::marker { color: #555; }
-  #objx .oxcol { margin-left: 18px; color: #9cdcfe; white-space: nowrap; }
-  #objx .oxtype { color: #666; }
-  #objx .oxnew { color: var(--fg); }
+  .schemastrip .sstable { color: #dcdcaa; }
+  .schemastrip .sscols { color: #9cdcfe; }
+  .schemastrip div { margin: 2px 0; }
   @media (max-width: 640px) {
-    .workbench { flex-direction: column; gap: 6px; }
-    .workbench .edcol { flex: none; width: 100%; }
     .CodeMirror.cm-s-trail { min-height: 110px; }
-    #objx { flex: none; max-height: 130px; width: 100%; }
     #app { padding: 8px 8px 30px; }
     body { font-size: 14px; }
     .panel { padding: 8px; margin: 8px 0; }
@@ -127,10 +117,10 @@
   }
 
   /* Slim dark scrollbars everywhere inside the game panes */
-  #objx, .outpane, .trailmap { scrollbar-width: thin; scrollbar-color: #333 #0d0d0b; }
-  #objx::-webkit-scrollbar, .outpane::-webkit-scrollbar, .trailmap::-webkit-scrollbar { width: 8px; height: 8px; }
-  #objx::-webkit-scrollbar-track, .outpane::-webkit-scrollbar-track, .trailmap::-webkit-scrollbar-track { background: #0d0d0b; }
-  #objx::-webkit-scrollbar-thumb, .outpane::-webkit-scrollbar-thumb, .trailmap::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  .outpane, .trailmap { scrollbar-width: thin; scrollbar-color: #333 #0d0d0b; }
+  .outpane::-webkit-scrollbar, .trailmap::-webkit-scrollbar { width: 8px; height: 8px; }
+  .outpane::-webkit-scrollbar-track, .trailmap::-webkit-scrollbar-track { background: #0d0d0b; }
+  .outpane::-webkit-scrollbar-thumb, .trailmap::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
   /* CodeMirror wraps lines; kill its native scrollbar chrome entirely */
   .CodeMirror-hscrollbar, .CodeMirror-vscrollbar, .CodeMirror-scrollbar-filler { display: none !important; }
 </style>
@@ -153,7 +143,7 @@
 <script>
 'use strict';
 const C = TrailContent, E = TrailEngine, G = TrailGrader;
-const BUILD = 11; // bump together with version.json on every deploy
+const BUILD = 12; // bump together with version.json on every deploy
 
 // GH Pages caches for 10 min; browsers hold old tabs longer. Compare the
 // running build against the deployed one (fetched uncached) and reload once
@@ -191,27 +181,27 @@ function buildSchemaHints() {
   for (const t of SEED_SCHEMA) SCHEMA_HINTS[t.table] = t.columns.map(c => c.name);
 }
 
-// Object Explorer tree. `schema` is a snapshot; tables not in the seed are
-// marked as new (the table the player just created).
-function objExplorerHtml(schema) {
-  const seedNames = new Set(SEED_SCHEMA.map(t => t.table));
-  const tree = schema.map(t => `
-    <details open>
-      <summary class="${seedNames.has(t.table) ? '' : 'oxnew'}">▦ ${esc(t.table)}${seedNames.has(t.table) ? '' : ' *'}</summary>
-      ${t.columns.map(c => `<div class="oxcol">${esc(c.name)} <span class="oxtype">${esc(c.type.toLowerCase())}</span></div>`).join('')}
-    </details>`).join('');
-  return `<div class="oxhead">▤ Object Explorer</div>${tree || '<div class="dim">no tables</div>'}`;
+// Which tables does this question actually involve? Parse the canonical
+// answer (and prompt as a fallback) so the strip shows only what's needed.
+function relevantTables(q) {
+  const text = (q.answer + ' ' + q.prompt).toLowerCase();
+  const hits = SEED_SCHEMA.filter(t => text.includes(t.table.toLowerCase()));
+  return hits.length ? hits : SEED_SCHEMA;
 }
 
-// Refresh the explorer (and autocomplete) after a statement runs, so a
-// CREATE TABLE shows up immediately — like hitting refresh in SSMS.
+// Compact schema strip: one line per relevant table — no tree to manage.
+function schemaStripHtml(q) {
+  return `<div class="schemastrip">${relevantTables(q).map(t =>
+    `<div>▦ <span class="sstable">${esc(t.table)}</span> <span class="dim">(</span><span class="sscols">${t.columns.map(c => esc(c.name)).join(', ')}</span><span class="dim">)</span></div>`).join('')}
+  </div>`;
+}
+
+// After a statement runs, fold any new tables into autocomplete.
 function refreshExplorer(schema) {
-  if (!schema) return;
-  const el = document.getElementById('objx');
-  if (el) el.innerHTML = objExplorerHtml(schema);
+  if (!schema || !editor) return;
   const hints = {};
   for (const t of schema) hints[t.table] = t.columns.map(c => c.name);
-  if (editor) editor.setOption('hintOptions', { tables: hints, completeSingle: false });
+  editor.setOption('hintOptions', { tables: hints, completeSingle: false });
 }
 
 // Mount a CodeMirror SQL editor with schema-aware autocomplete.
@@ -400,10 +390,8 @@ function screenQuestion() {
       <p>${esc(q.prompt)}</p>
       ${hints}
       <label>Query editor <span class="dim">(Ctrl+Space = autocomplete · Ctrl+Enter = run)</span></label>
-      <div class="workbench">
-        <div class="edcol"><div id="sqlHost"></div></div>
-        <div id="objx">${objExplorerHtml(SEED_SCHEMA)}</div>
-      </div>
+      <div id="sqlHost"></div>
+      ${schemaStripHtml(q)}
       <div>
         <button onclick="submitAnswer()">▶ Execute</button>
         <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
