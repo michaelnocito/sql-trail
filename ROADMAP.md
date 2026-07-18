@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 14 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 16 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -18,10 +18,10 @@
 - Arrival-condition score bonus with breakdown in the Journey Report
 - Cause-of-death flavor (seeded: dysentery, typhoid, cholera, snakebite, exhaustion)
 
-### Batch 2 — Mobile input + JOINs (NEXT)
-- Tap-token query builder (MVP-scope): validate at stop 1-2 difficulty FIRST, then keep or redesign
-- Stop 4 curriculum: JOINs (5 questions, inner/left, multi-table, fort_inventory × supplies patterns)
-- Gray-box boundary moves from stop 3 to stop 4
+### Batch 2 — Mobile input + JOINs (SHIPPED build 16, awaiting Mike's test)
+- Tap-token query builder: Type/Build tabs above the editor; pad shows keywords, functions, tables, qualified columns, values, operators derived per question; assembles into the same editor/grader path; coarse-pointer devices default to Build
+- Stop 4 curriculum: JOINs (5 questions — inner, join+WHERE, LEFT JOIN anti-join, join+GROUP BY/MIN, 3-way join via new `forts` table)
+- Gray-box boundary moved from stop 3 to stop 4
 
 ### Batch 3 — Curriculum depth
 - Stop 5: subqueries + CTEs (5 questions)

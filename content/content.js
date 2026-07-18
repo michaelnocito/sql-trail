@@ -56,6 +56,16 @@ INSERT INTO fort_inventory VALUES
  (7,'Fort Bridger','coffee','food',1.20,40),
  (8,'Fort Bridger','wagon axle','parts',21.00,2),
  (9,'Fort Bridger','bandages','medicine',1.50,25);
+
+CREATE TABLE forts (
+  fort TEXT PRIMARY KEY,
+  miles INTEGER NOT NULL,        -- miles from Independence
+  founded INTEGER NOT NULL
+);
+INSERT INTO forts VALUES
+ ('Fort Kearny',300,1848),
+ ('Fort Laramie',640,1834),
+ ('Fort Bridger',1025,1843);
 `;
 
   // Forage table seeded only for the forage minigame (Phase 4) — kept here so
@@ -217,8 +227,54 @@ INSERT INTO forage VALUES
         },
       ],
     },
-    // Stops 4-9: Phase 2 content. Stubbed so the map renders the full trail.
-    { id: 4, name: 'Fort Laramie', theme: 'Joins', concept: 'JOINs', questions: [] },
+    {
+      id: 4, name: 'Fort Laramie', theme: 'Joins',
+      concept: 'JOINs',
+      intro: 'Your wagon ledger and the fort ledger are two tables. Interview questions live in the space between them.',
+      questions: [
+        {
+          id: '4-1', type: 'select',
+          prompt: 'Which of your supplies does any fort also sell? Join supplies to fort_inventory on item; return the item, the fort, and its price there.',
+          answer: 'SELECT s.item, f.fort, f.price FROM supplies s JOIN fort_inventory f ON s.item = f.item',
+          hints: ['JOIN pairs rows from two tables wherever the ON condition matches.',
+                  'SELECT ... FROM tableA a JOIN tableB b ON a.key = b.key',
+                  'SELECT s.item, f.fort, f.price FROM supplies s JOIN fort_inventory f ON s.item = ___'],
+        },
+        {
+          id: '4-2', type: 'select',
+          prompt: "Restock check: for supplies that Fort Laramie sells, return the item, your qty on hand, and the fort's price. Filter to fort = 'Fort Laramie'.",
+          answer: "SELECT s.item, s.qty, f.price FROM supplies s JOIN fort_inventory f ON s.item = f.item WHERE f.fort = 'Fort Laramie'",
+          hints: ['Join first, then WHERE filters the joined rows like any others.',
+                  "... JOIN ... ON a.key = b.key WHERE b.col = 'value'",
+                  "SELECT s.item, s.qty, f.price FROM supplies s JOIN fort_inventory f ON s.item = f.item WHERE f.fort = '___'"],
+        },
+        {
+          id: '4-3', type: 'select',
+          prompt: 'Which supplies can NO fort replace? LEFT JOIN supplies to fort_inventory and return only the items with no match on the fort side.',
+          answer: 'SELECT s.item FROM supplies s LEFT JOIN fort_inventory f ON s.item = f.item WHERE f.item IS NULL',
+          hints: ['LEFT JOIN keeps every left-table row; where nothing matches, the right side comes back NULL.',
+                  'SELECT ... FROM a LEFT JOIN b ON a.key = b.key WHERE b.key IS NULL',
+                  'SELECT s.item FROM supplies s LEFT JOIN fort_inventory f ON s.item = f.item WHERE f.item IS ___'],
+        },
+        {
+          id: '4-4', type: 'select',
+          prompt: 'Cheapest replacement per item: for your supplies sold at any fort, return the item and the lowest fort price (name it best_price).',
+          answer: 'SELECT s.item, MIN(f.price) AS best_price FROM supplies s JOIN fort_inventory f ON s.item = f.item GROUP BY s.item',
+          hints: ['Aggregates work on joined rows too: group by the item, take MIN of the price.',
+                  'SELECT a.col, MIN(b.col) FROM a JOIN b ON ... GROUP BY a.col',
+                  'SELECT s.item, MIN(f.price) AS best_price FROM supplies s JOIN fort_inventory f ON s.item = f.item GROUP BY ___'],
+        },
+        {
+          id: '4-5', type: 'select', orderMatters: true,
+          prompt: 'Plan the resupply route — three tables. For your supplies sold at forts, return the item, the fort, its price, and the miles from forts. Order by miles up the trail, then by item.',
+          answer: 'SELECT s.item, f.fort, f.price, t.miles FROM supplies s JOIN fort_inventory f ON s.item = f.item JOIN forts t ON f.fort = t.fort ORDER BY t.miles, s.item',
+          hints: ['Chain a second JOIN: each ON clause links one new table to what you already have.',
+                  'FROM a JOIN b ON a.k = b.k JOIN c ON b.k2 = c.k2 ORDER BY ...',
+                  'SELECT s.item, f.fort, f.price, t.miles FROM supplies s JOIN fort_inventory f ON s.item = f.item JOIN forts t ON ___ ORDER BY t.miles, s.item'],
+        },
+      ],
+    },
+    // Stops 5-9: later batches. Stubbed so the map renders the full trail.
     { id: 5, name: 'Independence Rock', theme: 'Layers', concept: 'Subqueries + CTEs', questions: [] },
     { id: 6, name: 'South Pass', theme: 'Branches', concept: 'CASE + conditional aggregation', questions: [] },
     { id: 7, name: 'Fort Bridger', theme: 'Windows', concept: 'Window functions', questions: [] },

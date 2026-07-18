@@ -3,6 +3,7 @@ const initSqlJs = require('sql.js');
 const Grader = require('../js/grader.js');
 const Engine = require('../js/engine.js');
 const Content = require('../content/content.js');
+const Builder = require('../js/builder.js');
 
 let pass = 0, fail = 0;
 function check(name, cond, detail) {
@@ -80,6 +81,50 @@ function check(name, cond, detail) {
       check(`Q${q.id} canonical answer = full`, r.tier === 'full', r.reason + (r.error ? ': ' + r.error : ''));
     }
   }
+
+  console.log('tap-token builder');
+  check('assemble spaces tokens and hugs punctuation',
+    Builder.assemble(['SELECT', 'item', ',', 'SUM(', 'qty', ')', 'FROM', 'supplies'])
+      === 'SELECT item, SUM( qty) FROM supplies'.replace('( ', '(')); // no space after (
+  check('assembled tap answer grades to full', (() => {
+    const q = Content.STOPS[1].questions[0]; // 2-1: WHERE category='food'
+    const sql = Builder.assemble(['SELECT', 'item', ',', 'qty', 'FROM', 'supplies', 'WHERE', 'category', '=', "'food'"]);
+    return g(q, sql).tier === 'full';
+  })());
+  // Every canonical answer must be buildable from its own pad: keywords,
+  // functions, values, and (qualified) columns it needs all appear.
+  const schema = (() => {
+    const db = new SQL.Database(); db.exec(seed);
+    const s = Grader.snapshotSchema(db); db.close(); return s;
+  })();
+  for (const stop of Content.STOPS) {
+    for (const q of stop.questions) {
+      const text = (q.answer + ' ' + q.prompt).toLowerCase();
+      const rel = schema.filter(t => text.includes(t.table.toLowerCase()));
+      const pad = Builder.padFor(q, rel.length ? rel : schema);
+      const up = ' ' + q.answer.toUpperCase() + ' ';
+      const missingKw = Builder.KEYWORDS.filter(k =>
+        k !== 'AS' && new RegExp('\\b' + k.replace(/ /g, '\\s+') + '\\b').test(up) && !pad.keywords.includes(k));
+      const missingVals = (q.answer.match(/'[^']*'/g) || []).filter(v => !pad.values.includes(v));
+      check(`Q${q.id} pad covers its answer`, !missingKw.length && !missingVals.length,
+        [...missingKw, ...missingVals].join(', '));
+    }
+  }
+  // The unaliased queries a tap-builder actually produces for stop 4 must
+  // still grade to full (aliases are a typing convenience, not the concept).
+  const s4 = Content.STOPS[3];
+  const tapAnswers = {
+    '4-1': 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item',
+    '4-2': "SELECT supplies.item, supplies.qty, fort_inventory.price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item WHERE fort_inventory.fort = 'Fort Laramie'",
+    '4-3': 'SELECT supplies.item FROM supplies LEFT JOIN fort_inventory ON supplies.item = fort_inventory.item WHERE fort_inventory.item IS NULL',
+    '4-4': 'SELECT supplies.item, MIN(fort_inventory.price) FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item GROUP BY supplies.item',
+    '4-5': 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price, forts.miles FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item JOIN forts ON fort_inventory.fort = forts.fort ORDER BY forts.miles, supplies.item',
+  };
+  for (const q of s4.questions) {
+    const r = g(q, tapAnswers[q.id]);
+    check(`Q${q.id} unaliased tap query = full`, r.tier === 'full', r.reason + (r.error ? ': ' + r.error : ''));
+  }
+  check('stop 4 has 5 questions and a 3-way join', s4.questions.length === 5 && /JOIN forts/.test(s4.questions[4].answer));
 
   console.log('engine');
   const run = Engine.newRun(Content, ['You', 'Ada', 'Edgar', 'Codd'], { food: 100, parts: 40, medicine: 12 });
