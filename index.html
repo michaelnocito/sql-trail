@@ -143,7 +143,7 @@
 <script>
 'use strict';
 const C = TrailContent, E = TrailEngine, G = TrailGrader;
-const BUILD = 13; // bump together with version.json on every deploy
+const BUILD = 14; // bump together with version.json on every deploy
 
 // GH Pages caches for 10 min; browsers hold old tabs longer. Compare the
 // running build against the deployed one (fetched uncached) and reload once
@@ -366,7 +366,47 @@ function doTravel() {
 function afterTravel() {
   if (run.dead) return screenTombstone();
   if (run.stop > 3) return screenReport(true); // Phase 1 gray-box ends after stop 3
-  startStop();
+  if (C.RIVERS[run.stop]) return screenRiver();
+  screenArrival();
+}
+
+// River crossing decision (Batch 1): ford, caulk, or pay the ferry.
+function screenRiver() {
+  const river = C.RIVERS[run.stop];
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>🌊 The ${esc(river.name)}</h2>
+    <div class="panel">
+      <pre style="margin:0">  ～～～～～～～～～～～～～～\n ～～～ 🛶 ～～～～～ 🌊 ～～\n  ～～～～～～～～～～～～～～</pre>
+      <p>The river blocks the trail. How do you cross?</p>
+      <button onclick="doCross('ford')">Ford it (free, risky)</button>
+      <button onclick="doCross('caulk')">Caulk &amp; float (free, safer)</button>
+      <button onclick="doCross('ferry')" ${run.money < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry}, safe)</button>
+      <div id="riverOut"></div>
+    </div>`;
+}
+function doCross(choice) {
+  const river = C.RIVERS[run.stop];
+  const r = E.crossRiver(run, run.stop, choice, river);
+  if (!r.ok) { toast(r.text); return; }
+  document.getElementById('riverOut').innerHTML = `
+    <p class="amber">${esc(r.text)}</p>
+    <button onclick="run.dead ? screenTombstone() : screenArrival()">Continue</button>`;
+  [...document.querySelectorAll('button')].forEach(b => { if (b.textContent.match(/Ford|Caulk|Ferry/)) b.disabled = true; });
+}
+
+// Landmark arrival vignette (Batch 1).
+function screenArrival() {
+  const stop = C.STOPS[run.stop - 1];
+  const v = C.VIGNETTES[stop.id] || { art: '', flavor: '' };
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>You have arrived at ${esc(stop.name)}</h2>
+    <div class="panel center">
+      <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
+      <p class="dim">${esc(v.flavor)}</p>
+    </div>
+    <div class="center"><button onclick="startStop()">Enter the ${esc(stop.theme.toLowerCase())} challenge</button></div>`;
 }
 
 // The classic OT travel screen: wagon rolls across the landscape while the
@@ -634,8 +674,13 @@ function screenTombstone() {
 }
 
 function screenReport(finished) {
-  if (finished) saveHistory(true);
   const m = run.metrics;
+  // Arrival-condition bonus (Batch 1): applied once, shown as a breakdown.
+  if (finished && !m.arrival) {
+    m.arrival = E.arrivalBonus(run);
+    m.score += m.arrival.total;
+  }
+  if (finished) saveHistory(true);
   const mins = Math.round((Date.now() - run.startedAt) / 6000) / 10;
   const rows = m.perStop.map(s => {
     const stop = C.STOPS[s.stop - 1];
@@ -654,6 +699,7 @@ function screenReport(finished) {
         <span>Deaths <b>${m.deaths}</b></span>
       </div>
       <table><tr><th>Stop</th><th>Concept</th><th>Full</th><th>Partial</th><th>Hints</th><th>Time</th></tr>${rows}</table>
+      ${m.arrival ? `<p class="amber">Arrival bonus: +${m.arrival.total}</p><div class="dim">${m.arrival.parts.map(p => `${esc(p.label)} +${p.value}`).join(' · ')}</div>` : ''}
       ${prev ? `<p class="dim">Last run: score ${prev.score}, ${prev.mins} min — ${m.score > prev.score ? '<span class="amber">you beat it.</span>' : 'beat it next time.'}</p>` : '<p class="dim">First recorded run. This is your baseline.</p>'}
       <p class="dim">Phase 1 gray-box covers stops 1-3. Stops 4-9 and the full Journey Report land in later phases.</p>
     </div>

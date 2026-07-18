@@ -251,6 +251,29 @@ INSERT INTO forage VALUES
     'Fort Kearny': '🏕️', 'Fort Laramie': '🏕️', 'Fort Bridger': '🏕️',
   };
 
+  // Arrival flavor per stop (Batch 1: landmark vignettes).
+  const VIGNETTES = {
+    1: { art: '  🏘️ ⛺ 🐂🐂\n ═══════════', flavor: 'Independence hums with outfitters, oxen, and bad advice.' },
+    2: { art: '  🏕️ 🇺🇸\n ▄▄█▄▄▄█▄▄', flavor: 'Fort Kearny: the first landmark. The trail is real now.' },
+    3: { art: '    ▲\n   ███\n  ▁███▁', flavor: 'Chimney Rock rises from the plain like a stone exclamation mark.' },
+    4: { art: '  🏕️ ⚒️\n ▄█▄▄█▄▄█▄', flavor: 'Fort Laramie. Blacksmiths, traders, and prices that climb like the mountains ahead.' },
+    5: { art: '   ⬭\n ▂▄████▄▂', flavor: 'Independence Rock. Carve your name; thousands already did.' },
+    6: { art: ' ⛰️    ⛰️\n   ➡️\n▔▔▔▔▔▔▔▔', flavor: 'South Pass: the gentle gate through the Rockies.' },
+    7: { art: '  🏕️ 🐴\n ▄▄█▄█▄▄', flavor: 'Fort Bridger. Last good resupply before the dry country.' },
+    8: { art: ' 🌊🌊🌊\n ~~~~~~~~', flavor: 'The Snake River winds below. Respect it.' },
+    9: { art: ' 🌲🌾🌲\n 🏡🌲🌾', flavor: 'The Willamette Valley. Green, wide, and yours — if the books balance.' },
+  };
+
+  // River crossings before these stops (Batch 1). Outcomes are seeded per
+  // GAME_VERSION so every run faces identical rivers.
+  const RIVERS = {
+    2: { name: 'Kansas River', ferry: 25 },
+    5: { name: 'North Platte River', ferry: 30 },
+    8: { name: 'Snake River', ferry: 40 },
+  };
+
+  const DEATH_CAUSES = ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion'];
+
   const EPITAPHS = [
     'died of a Cartesian product',
     'forgot the WHERE clause',
@@ -260,7 +283,7 @@ INSERT INTO forage VALUES
     'never did commit',
   ];
 
-  const CONTENT = { GAME_VERSION, SEED_SQL, FORAGE_SQL, STOPS, EVENTS, EPITAPHS, ITEM_ICONS };
+  const CONTENT = { GAME_VERSION, SEED_SQL, FORAGE_SQL, STOPS, EVENTS, EPITAPHS, ITEM_ICONS, VIGNETTES, RIVERS, DEATH_CAUSES };
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT;
   else root.TrailContent = CONTENT;
 })(typeof self !== 'undefined' ? self : this);

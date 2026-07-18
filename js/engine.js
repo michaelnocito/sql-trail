@@ -67,16 +67,60 @@
     checkDeaths(run);
   }
 
+  // Seeded by version+name+day so the same run always writes the same history.
+  function deathCause(run, name) {
+    const causes = (run.causes || ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion']);
+    const rand = RNG.fromVersion(`${run.version}:death:${name}:${run.day}`);
+    return causes[Math.floor(rand() * causes.length)];
+  }
+
   function checkDeaths(run) {
     for (const m of run.party) {
       if (m.alive && m.health <= 0) {
         m.alive = false;
         m.health = 0;
         run.metrics.deaths++;
-        run.log.push({ day: run.day, text: `${m.name} has died.` });
+        run.log.push({ day: run.day, text: `💀 ${m.name} has died of ${deathCause(run, m.name)}.` });
       }
     }
     if (alive(run).length === 0) run.dead = true;
+  }
+
+  // River crossing (Batch 1). Outcome seeded per version+stop+choice:
+  // identical rivers every run, so "last run fording cost me 30 lbs" is a
+  // plannable fact — the analyst-thinking pillar.
+  function crossRiver(run, stopId, choice, river) {
+    const rand = RNG.fromVersion(`${run.version}:river:${stopId}:${choice}`);
+    const roll = rand();
+    let text, effects = {};
+    if (choice === 'ferry') {
+      if (run.money < river.ferry) return { ok: false, text: `The ferry operator wants $${river.ferry}. You don't have it.` };
+      effects.money = -river.ferry;
+      text = `The ferry carries you across the ${river.name} without incident. -$${river.ferry}.`;
+    } else if (choice === 'caulk') {
+      if (roll < 0.8) text = `You caulk the wagon and float the ${river.name} clean. Dry as a ledger.`;
+      else { effects = { food: -15, morale: -5 }; text = `The wagon takes on water in the ${river.name}. 15 lbs of food ruined.`; }
+    } else { // ford
+      if (roll < 0.6) text = `You ford the ${river.name} at the shallows. Nothing lost.`;
+      else { effects = { food: -30, morale: -5, health: [-5, -5, -5, -5] }; text = `The ${river.name} is deeper than it looked. 30 lbs of food swept away; everyone is soaked and battered.`; }
+    }
+    applyEffects(run, effects);
+    run.log.push({ day: run.day, text: '🌊 ' + text });
+    return { ok: true, text, effects };
+  }
+
+  // Arrival-condition bonus (Batch 1): classic OT scores the state you
+  // arrive in, not just the trip. Returns the breakdown for the report.
+  function arrivalBonus(run) {
+    const survivors = alive(run).length;
+    const parts = [
+      { label: 'Survivors', value: survivors * 100 },
+      { label: 'Food remaining', value: Math.round(run.food / 4) },
+      { label: 'Cash on hand', value: run.money },
+      { label: 'Spare parts', value: run.parts * 20 },
+      { label: 'Medicine', value: run.medicine * 10 },
+    ];
+    return { parts, total: parts.reduce((t, p) => t + p.value, 0) };
   }
 
   // Travel one leg toward the next stop. Returns the event that fired.
@@ -165,6 +209,7 @@
     PACE, RATIONS, START, PRICES, LEG_DAYS,
     newRun, travelLeg, recordAnswer, failStop, hintCost, burnRate,
     buildEventSchedule, applyEffects, moraleMult, alive,
+    crossRiver, arrivalBonus, deathCause,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else root.TrailEngine = Engine;

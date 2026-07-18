@@ -93,9 +93,18 @@ function check(name, cond, detail) {
   check('burn rate forecasts a stop', Engine.burnRate(run).runsOutAtStop > run.stop);
   const reward = Engine.recordAnswer(run, 1, { tier: 'full' }, 1, 0, 5000);
   check('full answer rewards food + score', reward > 0 && run.metrics.score === 100);
+  const r1 = Engine.crossRiver(run, 2, 'ford', Content.RIVERS[2]);
+  const runB = Engine.newRun(Content, ['A','B','C','D'], { food: 100, parts: 40, medicine: 12 });
+  Engine.travelLeg(runB);
+  const r2 = Engine.crossRiver(runB, 2, 'ford', Content.RIVERS[2]);
+  check('river outcome deterministic per version', r1.text === r2.text);
+  const bonus = Engine.arrivalBonus(run);
+  check('arrival bonus counts survivors and supplies',
+    bonus.total > 0 && bonus.parts.length === 5 && bonus.parts[0].value === 400);
   run.party.forEach(m => m.health = 1);
   Engine.failStop(run);
   check('party wipes to tombstone', run.dead === true && run.metrics.deaths === 4);
+  check('deaths log a cause', /has died of .+\./.test(run.log[run.log.length - 1].text));
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
