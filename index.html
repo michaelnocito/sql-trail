@@ -98,6 +98,27 @@
   .outpane .gridnum { text-align: right; color: #b5cea8; }
   .msgline { font-size: .9em; color: #cccccc; text-shadow: none; font-family: Consolas, monospace; }
   .msgline.err { color: var(--red); }
+
+  /* --- Object Explorer: schema tree like SSMS/DBeaver --- */
+  .workbench { display: flex; gap: 10px; align-items: stretch; }
+  .workbench .edcol { flex: 1 1 420px; min-width: 0; }
+  #objx {
+    flex: 0 0 200px; background: #0d0d0b; border: 1px solid var(--dim);
+    font-family: Consolas, monospace; font-size: .85em; text-shadow: none;
+    color: #cccccc; padding: 6px; overflow: auto; max-height: 340px;
+  }
+  #objx .oxhead { color: var(--amber); border-bottom: 1px solid #222;
+    padding-bottom: 4px; margin-bottom: 4px; }
+  #objx details { margin: 2px 0 2px 4px; }
+  #objx summary { cursor: pointer; color: #dcdcaa; }
+  #objx summary::marker { color: #555; }
+  #objx .oxcol { margin-left: 18px; color: #9cdcfe; white-space: nowrap; }
+  #objx .oxtype { color: #666; }
+  #objx .oxnew { color: var(--fg); }
+  @media (max-width: 640px) {
+    .workbench { flex-direction: column; }
+    #objx { flex: none; max-height: 160px; }
+  }
 </style>
 </head>
 <body>
@@ -125,16 +146,40 @@ let qState = null; // per-question: {idx, attempts, hintsShown, startedAt}
 let editor = null;        // CodeMirror instance for the current question
 let SCHEMA_HINTS = {};    // {table: [columns]} for autocomplete, built at boot
 
-// Derive autocomplete schema from the live seed DB so hints never drift
-// from the actual tables the player queries.
+let SEED_SCHEMA = [];     // [{table, columns:[{name,type}]}] from the seed DB
+
+// Derive autocomplete schema + Object Explorer tree from the live seed DB
+// so neither ever drifts from the actual tables the player queries.
 function buildSchemaHints() {
   const db = new SQL.Database();
   db.exec(TrailContent.SEED_SQL);
-  const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'")[0].values.map(r => r[0]);
-  for (const t of tables) {
-    SCHEMA_HINTS[t] = db.exec(`PRAGMA table_info(${JSON.stringify(t)})`)[0].values.map(r => r[1]);
-  }
+  SEED_SCHEMA = G.snapshotSchema(db);
   db.close();
+  SCHEMA_HINTS = {};
+  for (const t of SEED_SCHEMA) SCHEMA_HINTS[t.table] = t.columns.map(c => c.name);
+}
+
+// Object Explorer tree. `schema` is a snapshot; tables not in the seed are
+// marked as new (the table the player just created).
+function objExplorerHtml(schema) {
+  const seedNames = new Set(SEED_SCHEMA.map(t => t.table));
+  const tree = schema.map(t => `
+    <details open>
+      <summary class="${seedNames.has(t.table) ? '' : 'oxnew'}">▦ ${esc(t.table)}${seedNames.has(t.table) ? '' : ' *'}</summary>
+      ${t.columns.map(c => `<div class="oxcol">${esc(c.name)} <span class="oxtype">${esc(c.type.toLowerCase())}</span></div>`).join('')}
+    </details>`).join('');
+  return `<div class="oxhead">▤ Object Explorer</div>${tree || '<div class="dim">no tables</div>'}`;
+}
+
+// Refresh the explorer (and autocomplete) after a statement runs, so a
+// CREATE TABLE shows up immediately — like hitting refresh in SSMS.
+function refreshExplorer(schema) {
+  if (!schema) return;
+  const el = document.getElementById('objx');
+  if (el) el.innerHTML = objExplorerHtml(schema);
+  const hints = {};
+  for (const t of schema) hints[t.table] = t.columns.map(c => c.name);
+  if (editor) editor.setOption('hintOptions', { tables: hints, completeSingle: false });
 }
 
 // Mount a CodeMirror SQL editor with schema-aware autocomplete.
@@ -314,7 +359,10 @@ function screenQuestion() {
       <p>${esc(q.prompt)}</p>
       ${hints}
       <label>Query editor <span class="dim">(Ctrl+Space = autocomplete · Ctrl+Enter = run)</span></label>
-      <div id="sqlHost"></div>
+      <div class="workbench">
+        <div class="edcol"><div id="sqlHost"></div></div>
+        <div id="objx">${objExplorerHtml(SEED_SCHEMA)}</div>
+      </div>
       <div>
         <button onclick="submitAnswer()">▶ Execute</button>
         <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
@@ -355,6 +403,7 @@ function submitAnswer() {
   const r = G.grade(SQL, C.SEED_SQL, q, sqlText);
   const execMs = Math.max(1, Math.round(performance.now() - t0));
   const out = document.getElementById('result');
+  refreshExplorer(r.schemaAfter);
 
   if (r.tier === 'fail' && (r.reason === 'rejected' || r.reason === 'sql-error')) {
     // Free retry on syntax/sandbox errors — the trail punishes wrong answers, not typos.

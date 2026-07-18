@@ -49,6 +49,22 @@
     return rows.slice().sort((a, b) => (rowKey(a) < rowKey(b) ? -1 : rowKey(a) > rowKey(b) ? 1 : 0));
   }
 
+  // Snapshot the schema of a live db: [{table, columns: [{name, type}]}].
+  // Feeds the Object Explorer so player-created tables appear immediately.
+  function snapshotSchema(db) {
+    const out = [];
+    const res = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    if (!res.length) return out;
+    for (const [t] of res[0].values) {
+      const info = db.exec(`PRAGMA table_info("${String(t).replace(/"/g, '""')}")`);
+      out.push({
+        table: t,
+        columns: info.length ? info[0].values.map(r => ({ name: r[1], type: r[2] || '' })) : [],
+      });
+    }
+    return out;
+  }
+
   // Execute one statement; returns {columns, values} of the last SELECT, or null.
   function runOne(db, sql) {
     const res = db.exec(sql);
@@ -127,6 +143,7 @@
       const cmp = compareResults(playerRes, expectedRes, !!question.orderMatters);
       cmp.playerRes = playerRes;
       cmp.rowsAffected = rowsAffected;
+      cmp.schemaAfter = snapshotSchema(dbP);
       return cmp;
     } catch (e) {
       return { tier: TIER.FAIL, reason: 'sql-error', error: e.message, overlap: 0 };
@@ -136,7 +153,7 @@
     }
   }
 
-  const Grader = { grade, validate, compareResults, normRows, TIER, ROW_CAP };
+  const Grader = { grade, validate, compareResults, normRows, snapshotSchema, TIER, ROW_CAP };
   if (typeof module !== 'undefined' && module.exports) module.exports = Grader;
   else root.TrailGrader = Grader;
 })(typeof self !== 'undefined' ? self : this);
