@@ -61,7 +61,7 @@
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
   .CodeMirror.cm-s-trail {
     background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
-    height: auto; min-height: 84px; font-family: Consolas, "Courier New", monospace;
+    height: auto; min-height: 240px; font-family: Consolas, "Courier New", monospace;
     font-size: 15px; text-shadow: none;
   }
   .cm-s-trail .CodeMirror-lines { padding: 8px 0; }
@@ -105,7 +105,7 @@
   #objx {
     flex: 0 0 190px; background: #0d0d0b; border: 1px solid var(--dim);
     font-family: Consolas, monospace; font-size: .85em; text-shadow: none;
-    color: #cccccc; padding: 6px; overflow: auto; max-height: 300px;
+    color: #cccccc; padding: 6px; overflow: auto; max-height: 244px;
   }
   #objx .oxhead { color: var(--amber); border-bottom: 1px solid #222;
     padding-bottom: 4px; margin-bottom: 4px; }
@@ -118,6 +118,7 @@
   @media (max-width: 640px) {
     .workbench { flex-direction: column; gap: 6px; }
     .workbench .edcol { flex: none; width: 100%; }
+    .CodeMirror.cm-s-trail { min-height: 110px; }
     #objx { flex: none; max-height: 130px; width: 100%; }
     #app { padding: 8px 8px 30px; }
     body { font-size: 14px; }
@@ -152,6 +153,24 @@
 <script>
 'use strict';
 const C = TrailContent, E = TrailEngine, G = TrailGrader;
+const BUILD = 11; // bump together with version.json on every deploy
+
+// GH Pages caches for 10 min; browsers hold old tabs longer. Compare the
+// running build against the deployed one (fetched uncached) and reload once
+// if stale, so nobody ever playtests an old version again.
+async function checkForUpdate() {
+  try {
+    const res = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+    const v = await res.json();
+    if (v.build > BUILD) {
+      if (run && !run.dead) { toast('A new build shipped — refresh after this run.'); return; }
+      if (!sessionStorage.getItem('trail-reloaded-' + v.build)) {
+        sessionStorage.setItem('trail-reloaded-' + v.build, '1');
+        location.reload();
+      }
+    }
+  } catch { /* offline or file:// — ignore */ }
+}
 const app = document.getElementById('app');
 let SQL = null;
 let run = null;
@@ -269,7 +288,7 @@ function screenTitle() {
     <p class="center dim">You have died of a Cartesian product.<br>…not yet, anyway.</p>
     <div class="panel">
       <p>Travel the trail. At every rest stop, interview-grade SQL decides whether your party eats.</p>
-      <p class="dim">v${C.GAME_VERSION} — fixed trail, fixed questions, seeded events. Beat your own last run.</p>
+      <p class="dim">v${C.GAME_VERSION} build ${BUILD} — fixed trail, fixed questions, seeded events. Beat your own last run.</p>
     </div>
     <div class="center">
       <button onclick="screenOutfit()">Head west</button>
@@ -617,6 +636,8 @@ function screenHistory() {
 
 // ---------- boot ----------
 (async () => {
+  checkForUpdate();
+  setInterval(checkForUpdate, 120000); // catch long-open tabs too
   SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
   buildSchemaHints();
   screenTitle();
