@@ -143,7 +143,7 @@
 <script>
 'use strict';
 const C = TrailContent, E = TrailEngine, G = TrailGrader;
-const BUILD = 12; // bump together with version.json on every deploy
+const BUILD = 13; // bump together with version.json on every deploy
 
 // GH Pages caches for 10 min; browsers hold old tabs longer. Compare the
 // running build against the deployed one (fetched uncached) and reload once
@@ -358,10 +358,76 @@ function logPanel() {
 }
 
 function doTravel() {
+  const pre = { day: run.day, food: run.food, logLen: run.log.length };
   E.travelLeg(run);
+  screenTravelAnim(pre);
+}
+
+function afterTravel() {
   if (run.dead) return screenTombstone();
   if (run.stop > 3) return screenReport(true); // Phase 1 gray-box ends after stop 3
   startStop();
+}
+
+// The classic OT travel screen: wagon rolls across the landscape while the
+// day/miles/food readout ticks toward the (already-computed) leg result.
+// Purely cosmetic — determinism untouched. Skippable.
+let animTimer = null;
+function screenTravelAnim(pre) {
+  const TICKS = 34, MS = 85, LANE = 44;
+  const days = run.day - pre.day, food = run.food - pre.food;
+  const dest = C.STOPS[Math.min(run.stop, 9) - 1];
+  let t = 0;
+
+  app.innerHTML = `
+    ${trailMap()}
+    <h2>On the trail — toward ${esc(dest.name)}</h2>
+    <div class="panel">
+      <pre id="scene" style="margin:0;line-height:1.15;font-size:.85em;overflow:hidden"></pre>
+      <div class="statbar" style="margin-top:6px">
+        <span>📅 Day <b id="animDay">${pre.day}</b></span>
+        <span>🌾 <b id="animFood">${pre.food}</b> lbs</span>
+        <span class="dim">${esc(run.pace)} pace · ${esc(run.rations)} rations</span>
+      </div>
+    </div>
+    <div class="center"><button onclick="finishTravelAnim()">Skip ▸▸</button></div>
+    <div id="animLog"></div>`;
+
+  const draw = () => {
+    const x = Math.round((t / TICKS) * (LANE - 12));
+    const pad = ' '.repeat(x);
+    const wheel = t % 2 ? 'o' : '*';
+    const cloud = ' '.repeat((x * 2) % 30) + '~~~';
+    document.getElementById('scene').textContent =
+`  ${cloud}
+        /\\      /\\/\\        ${t % 4 < 2 ? '🌤' : '  '}
+   /\\  /  \\/\\  /    \\  /\\
+__/  \\/      \\/      \\/  \\____________________________
+${pad}   ____
+${pad}  /SQL \\\\__
+${pad} | TRAIL  |=🐂🐂
+${pad}  ${wheel}------${wheel}
+${'ⁿ'.repeat(LANE + 8)}`;
+    document.getElementById('animDay').textContent = pre.day + Math.round(days * t / TICKS);
+    document.getElementById('animFood').textContent = pre.food + Math.round(food * t / TICKS);
+  };
+  draw();
+  animTimer = setInterval(() => {
+    t++;
+    if (t >= TICKS) return finishTravelAnim();
+    draw();
+  }, MS);
+
+  window.finishTravelAnim = () => {
+    clearInterval(animTimer);
+    document.getElementById('animDay').textContent = run.day;
+    document.getElementById('animFood').textContent = run.food;
+    const fresh = run.log.slice(pre.logLen);
+    document.getElementById('animLog').innerHTML = `
+      ${fresh.length ? `<div class="panel">${fresh.map(l => `<div class="amber">Day ${l.day}: ${esc(l.text)}</div>`).join('')}</div>` : ''}
+      <div class="center"><button onclick="afterTravel()">Continue</button></div>`;
+    document.querySelector('button[onclick="finishTravelAnim()"]')?.remove();
+  };
 }
 
 function startStop() {
