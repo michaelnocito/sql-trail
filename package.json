@@ -1,0 +1,13 @@
+{
+  "name": "sql-trail",
+  "version": "0.1.0",
+  "description": "SQL Trail — an Oregon Trail homage that trains data analysts for SQL interviews.",
+  "scripts": {
+    "test": "node tests/grader.spec.js"
+  },
+  "devDependencies": {
+    "sql.js": "^1.10.2"
+  },
+  "author": "Michael Nocito <hello.michaelnocito@gmail.com>",
+  "license": "MIT"
+}

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SQL Trail</title>
+<meta name="description" content="An Oregon Trail homage that trains data analysts for SQL interviews.">
+<style>
+  :root {
+    --bg: #0a0a08; --fg: #33ff33; --dim: #1d8f1d; --amber: #ffb000;
+    --red: #ff5544; --panel: #101410; --border: #1d8f1d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Courier New", ui-monospace, monospace;
+    font-size: 16px; line-height: 1.45;
+    text-shadow: 0 0 6px rgba(51,255,51,.35);
+  }
+  /* CRT scanlines */
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+  }
+  #app { max-width: 760px; margin: 0 auto; padding: 16px 12px 60px; }
+  h1, h2 { color: var(--amber); text-shadow: 0 0 8px rgba(255,176,0,.4); margin: .4em 0; }
+  h1 { font-size: 1.6em; letter-spacing: 2px; }
+  .panel { border: 2px solid var(--border); background: var(--panel); padding: 12px; margin: 12px 0; }
+  .dim { color: var(--dim); }
+  .amber { color: var(--amber); }
+  .red { color: var(--red); }
+  button {
+    background: var(--bg); color: var(--fg); border: 2px solid var(--fg);
+    font: inherit; padding: 8px 14px; cursor: pointer; margin: 4px 4px 4px 0;
+    text-shadow: inherit; min-height: 44px;
+  }
+  button:hover, button:focus { background: var(--fg); color: var(--bg); text-shadow: none; }
+  button:disabled { border-color: var(--dim); color: var(--dim); cursor: default; }
+  button:disabled:hover { background: var(--bg); color: var(--dim); }
+  input[type=text], input[type=number], textarea {
+    background: #000; color: var(--fg); border: 1px solid var(--dim);
+    font: inherit; padding: 8px; width: 100%;
+  }
+  textarea { min-height: 110px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: .92em; }
+  th, td { border: 1px solid var(--dim); padding: 3px 8px; text-align: left; }
+  th { color: var(--amber); }
+  .statbar { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .9em; }
+  .trailmap { white-space: pre; overflow-x: auto; font-size: .85em; line-height: 1.2; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .row > div { flex: 1 1 140px; }
+  .center { text-align: center; }
+  .tomb { white-space: pre; font-size: .9em; line-height: 1.15; color: var(--dim); }
+  label { display: block; margin: 6px 0 2px; }
+  #toast { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 2px solid var(--amber); color: var(--amber);
+    padding: 8px 16px; display: none; max-width: 90vw; }
+</style>
+</head>
+<body>
+<div id="app"><p class="center dim">Loading the trail…</p></div>
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="js/rng.js"></script>
+<script src="js/grader.js"></script>
+<script src="js/engine.js"></script>
+<script src="content/content.js"></script>
+<script>
+'use strict';
+const C = TrailContent, E = TrailEngine, G = TrailGrader;
+const app = document.getElementById('app');
+let SQL = null;
+let run = null;
+let qState = null; // per-question: {idx, attempts, hintsShown, startedAt}
+
+const HIST_KEY = 'sql-trail-history-v1';
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3200);
+}
+
+function statbar() {
+  const br = E.burnRate(run);
+  return `<div class="panel statbar">
+    <span>Day <b>${run.day}</b></span>
+    <span>Food <b>${run.food}</b> lbs</span>
+    <span>Parts <b>${run.parts}</b></span>
+    <span>Meds <b>${run.medicine}</b></span>
+    <span>$<b>${run.money}</b></span>
+    <span>Morale <b>${run.morale}</b></span>
+    <span class="dim">Food lasts ~${br.legsOfFood} legs</span>
+  </div>
+  <div class="panel statbar">${run.party.map(m =>
+    m.alive ? `<span>${esc(m.name)} <b>${m.health}</b></span>`
+            : `<span class="red">${esc(m.name)} ✝</span>`).join('')}
+  </div>`;
+}
+
+function trailMap() {
+  let line = '', labels = '';
+  C.STOPS.forEach((s, i) => {
+    const here = run && run.stop === i + 1;
+    const passed = run && run.stop > i + 1;
+    line += (passed ? '══' : '──') + (here ? '[◆]' : passed ? '[■]' : '[ ]');
+  });
+  return `<div class="panel trailmap">START ${line}══► OREGON\n<span class="dim">stop ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
+}
+
+// ---------- screens ----------
+
+function screenTitle() {
+  app.innerHTML = `
+    <h1 class="center">S Q L &nbsp; T R A I L</h1>
+    <p class="center dim">You have died of a Cartesian product.<br>…not yet, anyway.</p>
+    <div class="panel">
+      <p>Travel the trail. At every rest stop, interview-grade SQL decides whether your party eats.</p>
+      <p class="dim">v${C.GAME_VERSION} — fixed trail, fixed questions, seeded events. Beat your own last run.</p>
+    </div>
+    <div class="center">
+      <button onclick="screenOutfit()">Head west</button>
+      <button onclick="screenHistory()">Journey records</button>
+    </div>`;
+}
+
+function screenOutfit() {
+  app.innerHTML = `
+    <h2>Independence, MO — The Outfitter</h2>
+    <div class="panel">
+      <p>Name your party of four.</p>
+      <div class="row">
+        <div><label>Leader</label><input type="text" id="p0" value="You" maxlength="12"></div>
+        <div><label>Member 2</label><input type="text" id="p1" value="Ada" maxlength="12"></div>
+        <div><label>Member 3</label><input type="text" id="p2" value="Edgar" maxlength="12"></div>
+        <div><label>Member 4</label><input type="text" id="p3" value="Codd" maxlength="12"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <p>You have <b class="amber">$${E.START.money}</b>. Allocate your budget — an analyst plans from data.
+      <span class="dim">(Food $${E.PRICES.food}/lb · Parts $${E.PRICES.parts} each · Medicine $${E.PRICES.medicine} each. Unspent money stays cash for hints and forts.)</span></p>
+      <div class="row">
+        <div><label>$ Food</label><input type="number" id="aFood" value="100" min="0" max="160"></div>
+        <div><label>$ Parts</label><input type="number" id="aParts" value="40" min="0" max="160"></div>
+        <div><label>$ Medicine</label><input type="number" id="aMeds" value="12" min="0" max="160"></div>
+      </div>
+      <p id="allocSum" class="dim"></p>
+    </div>
+    <div class="center"><button onclick="startRun()">Hitch the oxen</button></div>`;
+  const upd = () => {
+    const s = ['aFood','aParts','aMeds'].reduce((t, id) => t + (+document.getElementById(id).value || 0), 0);
+    const el = document.getElementById('allocSum');
+    el.textContent = `Spending $${s} of $${E.START.money} — $${E.START.money - s} kept as cash`;
+    el.className = s > E.START.money ? 'red' : 'dim';
+  };
+  ['aFood','aParts','aMeds'].forEach(id => document.getElementById(id).oninput = upd);
+  upd();
+}
+
+function startRun() {
+  const names = [0,1,2,3].map(i => document.getElementById('p' + i).value.trim() || 'Pioneer');
+  const alloc = {
+    food: +document.getElementById('aFood').value || 0,
+    parts: +document.getElementById('aParts').value || 0,
+    medicine: +document.getElementById('aMeds').value || 0,
+  };
+  try { run = E.newRun(C, names, alloc); }
+  catch (e) { toast(e.message); return; }
+  run.startedAt = Date.now();
+  screenTravel();
+}
+
+function screenTravel() {
+  const next = C.STOPS[run.stop]; // stop index === next stop (0-based)
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>On the trail — toward ${esc(next.name)}</h2>
+    <div class="panel">
+      <div class="row">
+        <div><label>Pace</label>${sel('pace', Object.keys(E.PACE), run.pace)}</div>
+        <div><label>Rations</label>${sel('rations', Object.keys(E.RATIONS), run.rations)}</div>
+      </div>
+    </div>
+    <div class="center"><button onclick="doTravel()">Continue on trail</button></div>
+    ${logPanel()}`;
+  function sel(key, opts, cur) {
+    return opts.map(o =>
+      `<button style="min-width:110px;${o===cur?'background:var(--fg);color:var(--bg);text-shadow:none;':''}" onclick="run.${key}='${o}';screenTravel()">${o}</button>`).join('');
+  }
+}
+
+function logPanel() {
+  if (!run.log.length) return '';
+  return `<div class="panel"><b class="amber">Trail log</b>${run.log.slice(-6).map(l =>
+    `<div class="dim">Day ${l.day}: ${esc(l.text)}</div>`).join('')}</div>`;
+}
+
+function doTravel() {
+  E.travelLeg(run);
+  if (run.dead) return screenTombstone();
+  if (run.stop > 3) return screenReport(true); // Phase 1 gray-box ends after stop 3
+  startStop();
+}
+
+function startStop() {
+  qState = { idx: 0, attempts: 0, hintsShown: 0, startedAt: Date.now(), correctCount: 0 };
+  screenQuestion();
+}
+
+function screenQuestion() {
+  const stop = C.STOPS[run.stop - 1];
+  const q = stop.questions[qState.idx];
+  const hints = q.hints.slice(0, qState.hintsShown).map((h, i) =>
+    `<div class="dim">Hint ${i + 1}: ${esc(h)}</div>`).join('');
+  const nextHintCost = E.hintCost(qState.hintsShown);
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>${esc(stop.name)} — ${esc(stop.concept)}</h2>
+    ${qState.idx === 0 && stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
+    <div class="panel">
+      <b class="amber">Question ${qState.idx + 1} of ${stop.questions.length}</b>
+      <p>${esc(q.prompt)}</p>
+      ${hints}
+      <label for="sqlIn">Your SQL</label>
+      <textarea id="sqlIn" spellcheck="false" autocapitalize="off"></textarea>
+      <div>
+        <button onclick="submitAnswer()">Run query</button>
+        <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
+          Hint ${qState.hintsShown + 1}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
+        </button>
+        <button onclick="skipQuestion()">Give up (−health)</button>
+      </div>
+      <div id="result"></div>
+    </div>
+    <div class="panel dim"><b class="amber">Trail Guide</b> — ${esc(guideBlurb(stop.concept))}
+      <div>Study more: <a style="color:var(--amber)" href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Analyst Prep Kit</a></div></div>`;
+  document.getElementById('sqlIn').focus();
+}
+
+function guideBlurb(concept) {
+  const g = {
+    'CREATE TABLE / INSERT': 'CREATE TABLE defines structure; INSERT adds rows. Concepts only here — syntax is your job.',
+    'SELECT / WHERE / ORDER BY': 'SELECT chooses columns, WHERE filters rows, ORDER BY sorts the result.',
+    'UPDATE / DELETE': 'UPDATE changes rows in place, DELETE removes them. WHERE decides the blast radius.',
+  };
+  return g[concept] || concept;
+}
+
+function takeHint() {
+  const cost = E.hintCost(qState.hintsShown);
+  if (cost > 0 && run.food < cost) return toast('Not enough food for that hint.');
+  run.food -= cost;
+  qState.hintsShown++;
+  screenQuestion();
+}
+
+function submitAnswer() {
+  const stop = C.STOPS[run.stop - 1];
+  const q = stop.questions[qState.idx];
+  const sqlText = document.getElementById('sqlIn').value;
+  qState.attempts++;
+  const r = G.grade(SQL, C.SEED_SQL, q, sqlText);
+  const out = document.getElementById('result');
+
+  if (r.tier === 'fail' && (r.reason === 'rejected' || r.reason === 'sql-error')) {
+    out.innerHTML = `<p class="red">${esc(r.error || 'That did not run.')}</p>`;
+    return; // free retry on syntax/sandbox errors — the trail punishes wrong answers, not typos
+  }
+
+  const timeMs = Date.now() - qState.startedAt;
+  if (r.tier === 'full' || r.tier === 'partial') {
+    const reward = E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
+    if (r.tier === 'full') qState.correctCount++;
+    out.innerHTML = `
+      ${r.tier === 'full'
+        ? `<p class="amber">Correct. You gathered ${reward} lbs of supplies.</p>`
+        : `<p class="amber">Partial credit (${Math.round(r.overlap * 100)}% of rows). You gathered ${reward} lbs but could only carry half.</p>`}
+      ${renderRows(r.playerRes)}
+      <button onclick="nextQuestion()">Continue</button>`;
+  } else {
+    E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
+    out.innerHTML = `
+      <p class="red">Wrong rows came back. The party goes a little hungrier.</p>
+      ${renderRows(r.playerRes)}
+      <button onclick="screenQuestion()">Try again</button>
+      <button onclick="nextQuestion()">Move on</button>`;
+  }
+  if (run.dead) screenTombstone();
+}
+
+function skipQuestion() {
+  const stop = C.STOPS[run.stop - 1];
+  E.recordAnswer(run, stop.id, { tier: 'fail' }, qState.attempts + 1, qState.hintsShown, Date.now() - qState.startedAt);
+  run.party.forEach(m => { if (m.alive) m.health -= 5; });
+  nextQuestion();
+}
+
+function renderRows(res) {
+  if (!res || !res.columns.length) return '<p class="dim">(no rows returned)</p>';
+  const head = '<tr>' + res.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+  const body = res.values.slice(0, 20).map(r =>
+    '<tr>' + r.map(v => `<td>${v === null ? '<span class="dim">NULL</span>' : esc(v)}</td>`).join('') + '</tr>').join('');
+  const more = res.values.length > 20 ? `<p class="dim">…${res.values.length - 20} more rows</p>` : '';
+  return `<table>${head}${body}</table>${more}`;
+}
+
+function nextQuestion() {
+  const stop = C.STOPS[run.stop - 1];
+  qState.idx++;
+  if (qState.idx >= stop.questions.length) {
+    // Stop failure = under half full-credit answers (GDD §5: move on weakened).
+    if (qState.correctCount < Math.ceil(stop.questions.length / 2)) {
+      E.failStop(run);
+      toast('A rough stop. The party moves on weakened.');
+    }
+    if (run.dead) return screenTombstone();
+    screenTravel();
+  } else {
+    qState.attempts = 0; qState.hintsShown = 0; qState.startedAt = Date.now();
+    screenQuestion();
+  }
+}
+
+function screenTombstone() {
+  const rand = TrailRNG.fromVersion(C.GAME_VERSION + ':' + run.day);
+  const epitaph = C.EPITAPHS[Math.floor(rand() * C.EPITAPHS.length)];
+  saveHistory(false);
+  app.innerHTML = `
+    <h2 class="center red">The whole party has died.</h2>
+    <div class="panel tomb center">      _______
+     /       \\
+    |  R.I.P  |
+    |         |
+    | ${esc(run.party[0].name).padEnd(8)}|
+    |  &amp; co.  |
+    |_________|
+   Here lies a party that
+   ${esc(epitaph)}
+   Day ${run.day} · v${C.GAME_VERSION}</div>
+    <div class="center">
+      <button onclick="screenOutfit()">Start a new run</button>
+      <button onclick="screenReport(false)">Journey Report</button>
+    </div>`;
+}
+
+function screenReport(finished) {
+  if (finished) saveHistory(true);
+  const m = run.metrics;
+  const mins = Math.round((Date.now() - run.startedAt) / 6000) / 10;
+  const rows = m.perStop.map(s => {
+    const stop = C.STOPS[s.stop - 1];
+    return `<tr><td>${s.stop}. ${esc(stop.name)}</td><td>${esc(stop.concept)}</td>
+      <td>${s.correct}/${stop.questions.length}</td><td>${s.partial}</td><td>${s.hints}</td>
+      <td>${Math.round(s.timeMs / 1000)}s</td></tr>`;
+  }).join('');
+  const hist = loadHistory();
+  const prev = hist.length > 1 ? hist[hist.length - 2] : null;
+  app.innerHTML = `
+    <h2>${finished ? 'Gray-box complete — Journey Report' : 'Journey Report'}</h2>
+    <div class="panel">
+      <div class="statbar">
+        <span>Time <b>${mins}</b> min</span><span>Days <b>${run.day}</b></span>
+        <span>Score <b>${m.score}</b></span><span>Hints <b>${m.hints}</b></span>
+        <span>Deaths <b>${m.deaths}</b></span>
+      </div>
+      <table><tr><th>Stop</th><th>Concept</th><th>Full</th><th>Partial</th><th>Hints</th><th>Time</th></tr>${rows}</table>
+      ${prev ? `<p class="dim">Last run: score ${prev.score}, ${prev.mins} min — ${m.score > prev.score ? '<span class="amber">you beat it.</span>' : 'beat it next time.'}</p>` : '<p class="dim">First recorded run. This is your baseline.</p>'}
+      <p class="dim">Phase 1 gray-box covers stops 1-3. Stops 4-9 and the full Journey Report land in later phases.</p>
+    </div>
+    <div class="center">
+      <button onclick="screenOutfit()">Run it again</button>
+      <button onclick="screenTitle()">Title</button>
+    </div>`;
+}
+
+function saveHistory(finished) {
+  const hist = loadHistory();
+  hist.push({ v: run.version, score: run.metrics.score, days: run.day,
+    mins: Math.round((Date.now() - run.startedAt) / 6000) / 10,
+    hints: run.metrics.hints, deaths: run.metrics.deaths, finished, at: Date.now() });
+  localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(-50)));
+}
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; }
+}
+
+function screenHistory() {
+  const hist = loadHistory().slice().reverse();
+  app.innerHTML = `
+    <h2>Journey records</h2>
+    <div class="panel">${hist.length ? `<table>
+      <tr><th>When</th><th>Score</th><th>Days</th><th>Min</th><th>Hints</th><th>Fate</th></tr>
+      ${hist.map(h => `<tr><td>${new Date(h.at).toLocaleDateString()}</td><td>${h.score}</td>
+        <td>${h.days}</td><td>${h.mins}</td><td>${h.hints}</td>
+        <td>${h.finished ? 'arrived' : '<span class="red">✝</span>'}</td></tr>`).join('')}
+      </table>` : '<p class="dim">No runs yet. The trail keeps the books; you just have to walk it.</p>'}
+    </div>
+    <div class="center"><button onclick="screenTitle()">Back</button></div>`;
+}
+
+// ---------- boot ----------
+(async () => {
+  SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+  screenTitle();
+})();
+</script>
+</body>
+</html>
