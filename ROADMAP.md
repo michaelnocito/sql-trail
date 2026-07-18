@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 18 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 19 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -29,6 +29,13 @@ Mike's direction: modern white + dusty brown chrome, modern QoL/game-design clar
 - Retro preserved as .crt callouts: trail map, arrival vignettes, river art, travel animation, tombstone, title tagline (green phosphor + scanlines)
 - Orientation QoL: 🎯 "Your task" callout per question, question progress dots, "next step" guidance lines on outfitter/travel/arrival screens
 - Dark VS Code editor/results/build-pad kept as the "pro tool" zone
+
+### Aged wanted-poster backdrop (SHIPPED build 19, awaiting Mike's test)
+Mike's direction: fill the beige empty space with a faded, old, burnt-hole wanted-poster background + western-brown frontier sketches, all copyright-safe.
+- All ORIGINAL inline-SVG line art (no third-party/MECC assets): covered wagon, two wagon wheels, ox skull, gravestone cross, saguaro cactus, mountain range + sun. Western-brown stroke (#6f4e2e) at low opacity.
+- Burnt holes: 3 scorch marks via feTurbulence-displaced radial gradients (charred dark center → rust ring → fade).
+- Aged paper: sepia stain blotches, poster-edge vignette, grayscale grain, all layered on body::before (z-index -1, above paper fill, under content). Opacity .8 desktop / .5 mobile; hidden in print.
+- Verified in browser: art renders (data URIs + turbulence filters OK), cards keep text fully readable.
 
 ### Feedback shipped between batches (build 18, 2026-07-18)
 Mike: 5 questions per stop was too many; hint 3 should just paste.
