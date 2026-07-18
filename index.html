@@ -379,9 +379,9 @@ function screenQuestion() {
 
 function guideBlurb(concept) {
   const g = {
-    'INSERT — stock the wagon': 'INSERT adds rows to a table that already exists: single rows, several at once, or the result of a SELECT.',
-    'SELECT / WHERE / ORDER BY': 'SELECT chooses columns, WHERE filters rows, ORDER BY sorts the result.',
-    'UPDATE / DELETE': 'UPDATE changes rows in place, DELETE removes them. WHERE decides the blast radius.',
+    'SELECT fundamentals': 'SELECT chooses columns; DISTINCT removes duplicates; you can compute new columns with arithmetic and AS.',
+    'WHERE / ORDER BY': 'WHERE filters rows (=, <, >, AND, IN); ORDER BY sorts the result, ASC or DESC.',
+    'Aggregates + GROUP BY / HAVING': 'COUNT/SUM/AVG collapse many rows into one; GROUP BY makes one row per group; HAVING filters the groups.',
   };
   return g[concept] || concept;
 }

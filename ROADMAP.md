@@ -10,7 +10,7 @@ Build order (each phase ends in something playtestable):
 
 ## Shelved: SQL General Store (future spin-off game)
 
-Database and table creation (DDL) is out of SQL Trail's curriculum — it deserves its own advanced game rather than one rushed stop. Concept: **run your general store on the trail**. You open a trading post at a fort and build the business from an empty database: design the schema (CREATE TABLE, keys, constraints), stock inventory, run the shop day to day (purchase orders, sales, restocks, price changes), and read your own books to survive the season. Covers CREATE/ALTER/DROP, constraints and keys, indexes, transactions, and the inventory/orders patterns interviews love. Shares the SQL Trail engine, editor, and Object Explorer.
+All writing — DDL (CREATE/ALTER/DROP) **and** DML (INSERT/UPDATE/DELETE) — is out of SQL Trail's curriculum. SQL Trail is a pure query game: reading data is the interview skill, and it keeps the difficulty ramp honest. Writing gets its own advanced game. Concept: **run your general store on the trail**. You open a trading post at a fort and build the business from an empty database: design the schema (CREATE TABLE, keys, constraints), stock inventory (INSERT), run the shop day to day (UPDATE prices, DELETE spoilage, purchase orders, sales, restocks), and read your own books to survive the season. Covers DDL, DML, constraints and keys, indexes, transactions, and the inventory/orders patterns interviews love. Shares the SQL Trail engine, editor (the grader's write-statement support is already built and tested), and Object Explorer.
 
 ## MVP cut order
 

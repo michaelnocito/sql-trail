@@ -61,12 +61,17 @@ function check(name, cond, detail) {
     return r.tier !== 'full';
   })());
 
-  console.log('write (DDL/DML) grading');
-  const q11 = Content.STOPS[0].questions[0];
-  check('stop 1 insert full credit', g(q11, "INSERT INTO supplies (item, category, qty, unit_cost) VALUES ('salt pork','food',100,0.45)").tier === 'full');
-  const q31 = Content.STOPS[2].questions[0];
-  check('stop 3 update full credit', g(q31, "UPDATE supplies SET qty = 65 WHERE item='bacon'").tier === 'full');
-  check('stop 3 unaimed update fails', g(q31, 'UPDATE supplies SET qty = qty - 15').tier !== 'full');
+  console.log('write (DDL/DML) grading — capability kept for the General Store spin-off');
+  const wIns = { type: 'write',
+    answer: "INSERT INTO supplies VALUES ('salt pork','food',100,0.45)",
+    check: 'SELECT item, category, qty, unit_cost FROM supplies ORDER BY item' };
+  check('insert full credit', g(wIns, "INSERT INTO supplies (item, category, qty, unit_cost) VALUES ('salt pork','food',100,0.45)").tier === 'full');
+  const wUpd = { type: 'write',
+    answer: "UPDATE supplies SET qty = qty - 15 WHERE item='bacon'",
+    check: 'SELECT item, qty FROM supplies ORDER BY item' };
+  check('update full credit', g(wUpd, "UPDATE supplies SET qty = 65 WHERE item='bacon'").tier === 'full');
+  check('unaimed update fails', g(wUpd, 'UPDATE supplies SET qty = qty - 15').tier !== 'full');
+  check('curriculum is read-only', Content.STOPS.every(s => s.questions.every(q => q.type === 'select')));
 
   console.log('content answers self-grade to full');
   for (const stop of Content.STOPS) {
