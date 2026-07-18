@@ -110,9 +110,10 @@
     try {
       dbP.exec(seedSql);
       dbE.exec(seedSql);
-      let playerRes, expectedRes;
+      let playerRes, expectedRes, rowsAffected = null;
       if (allowWrite) {
         dbP.exec(playerSql);
+        rowsAffected = dbP.getRowsModified();
         dbE.exec(question.answer);
         playerRes = runOne(dbP, question.check);
         expectedRes = runOne(dbE, question.check);
@@ -125,6 +126,7 @@
       }
       const cmp = compareResults(playerRes, expectedRes, !!question.orderMatters);
       cmp.playerRes = playerRes;
+      cmp.rowsAffected = rowsAffected;
       return cmp;
     } catch (e) {
       return { tier: TIER.FAIL, reason: 'sql-error', error: e.message, overlap: 0 };

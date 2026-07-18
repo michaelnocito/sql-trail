@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SQL Trail</title>
 <meta name="description" content="An Oregon Trail homage that trains data analysts for SQL interviews.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
 <style>
   :root {
     --bg: #0a0a08; --fg: #33ff33; --dim: #1d8f1d; --amber: #ffb000;
@@ -55,6 +57,47 @@
   #toast { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
     background: var(--panel); border: 2px solid var(--amber); color: var(--amber);
     padding: 8px 16px; display: none; max-width: 90vw; }
+
+  /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
+  .CodeMirror.cm-s-trail {
+    background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
+    height: auto; min-height: 120px; font-family: Consolas, "Courier New", monospace;
+    font-size: 15px; text-shadow: none;
+  }
+  .cm-s-trail .CodeMirror-lines { padding: 8px 0; }
+  .cm-s-trail .CodeMirror-gutters { background: #0d0d0b; border-right: 1px solid #222; }
+  .cm-s-trail .CodeMirror-linenumber { color: #555; }
+  .cm-s-trail .CodeMirror-cursor { border-left: 2px solid #d4d4d4; }
+  .cm-s-trail .CodeMirror-selected { background: #264f78 !important; }
+  .cm-s-trail span.cm-keyword { color: #569cd6; font-weight: bold; }
+  .cm-s-trail span.cm-builtin { color: #dcdcaa; }
+  .cm-s-trail span.cm-string, .cm-s-trail span.cm-string-2 { color: #ce9178; }
+  .cm-s-trail span.cm-number { color: #b5cea8; }
+  .cm-s-trail span.cm-comment { color: #6a9955; font-style: italic; }
+  .cm-s-trail span.cm-operator { color: #d4d4d4; }
+  .cm-s-trail span.cm-variable, .cm-s-trail span.cm-variable-2 { color: #9cdcfe; }
+  .cm-s-trail span.cm-atom { color: #569cd6; }
+  .cm-s-trail span.cm-bracket { color: #ffd700; }
+  .CodeMirror-hints {
+    background: #1e1e1e; border: 1px solid #454545; font-family: Consolas, monospace;
+    font-size: 14px; z-index: 50;
+  }
+  .CodeMirror-hint { color: #d4d4d4; }
+  li.CodeMirror-hint-active { background: #094771; color: #fff; }
+
+  /* --- Results pane: real query-editor output --- */
+  .outtabs { display: flex; gap: 0; margin-top: 10px; }
+  .outtabs button {
+    min-height: 30px; padding: 3px 14px; margin: 0; font-size: .85em;
+    border: 1px solid var(--dim); border-bottom: none; color: var(--dim);
+  }
+  .outtabs button.on { color: var(--amber); border-color: var(--amber); background: var(--bg); }
+  .outpane { border: 1px solid var(--dim); padding: 8px; background: #0d0d0b;
+    max-height: 300px; overflow: auto; }
+  .outpane table { margin: 0; }
+  .outpane .gridnum { text-align: right; color: #b5cea8; }
+  .msgline { font-size: .9em; color: #cccccc; text-shadow: none; font-family: Consolas, monospace; }
+  .msgline.err { color: var(--red); }
 </style>
 </head>
 <body>
@@ -62,6 +105,12 @@
 <div id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/sql-hint.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
 <script src="js/rng.js"></script>
 <script src="js/grader.js"></script>
 <script src="js/engine.js"></script>
@@ -73,6 +122,47 @@ const app = document.getElementById('app');
 let SQL = null;
 let run = null;
 let qState = null; // per-question: {idx, attempts, hintsShown, startedAt}
+let editor = null;        // CodeMirror instance for the current question
+let SCHEMA_HINTS = {};    // {table: [columns]} for autocomplete, built at boot
+
+// Derive autocomplete schema from the live seed DB so hints never drift
+// from the actual tables the player queries.
+function buildSchemaHints() {
+  const db = new SQL.Database();
+  db.exec(TrailContent.SEED_SQL);
+  const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'")[0].values.map(r => r[0]);
+  for (const t of tables) {
+    SCHEMA_HINTS[t] = db.exec(`PRAGMA table_info(${JSON.stringify(t)})`)[0].values.map(r => r[1]);
+  }
+  db.close();
+}
+
+// Mount a CodeMirror SQL editor with schema-aware autocomplete.
+function mountEditor(hostId) {
+  const host = document.getElementById(hostId);
+  editor = CodeMirror(host, {
+    mode: 'text/x-sql',
+    theme: 'trail',
+    lineNumbers: true,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    autofocus: true,
+    viewportMargin: Infinity,
+    extraKeys: {
+      'Ctrl-Space': 'autocomplete',
+      'Ctrl-Enter': () => submitAnswer(),
+      'Cmd-Enter': () => submitAnswer(),
+    },
+    hintOptions: { tables: SCHEMA_HINTS, completeSingle: false },
+  });
+  // Auto-open completions while typing identifiers or after a dot,
+  // like a desktop SQL editor's IntelliSense.
+  editor.on('inputRead', (cm, change) => {
+    if (cm.state.completionActive) return;
+    const ch = change.text[change.text.length - 1];
+    if (/[A-Za-z_.]/.test(ch)) cm.showHint({ completeSingle: false });
+  });
+}
 
 const HIST_KEY = 'sql-trail-history-v1';
 
@@ -223,10 +313,10 @@ function screenQuestion() {
       <b class="amber">Question ${qState.idx + 1} of ${stop.questions.length}</b>
       <p>${esc(q.prompt)}</p>
       ${hints}
-      <label for="sqlIn">Your SQL</label>
-      <textarea id="sqlIn" spellcheck="false" autocapitalize="off"></textarea>
+      <label>Query editor <span class="dim">(Ctrl+Space = autocomplete · Ctrl+Enter = run)</span></label>
+      <div id="sqlHost"></div>
       <div>
-        <button onclick="submitAnswer()">Run query</button>
+        <button onclick="submitAnswer()">▶ Execute</button>
         <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
           Hint ${qState.hintsShown + 1}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
         </button>
@@ -236,7 +326,7 @@ function screenQuestion() {
     </div>
     <div class="panel dim"><b class="amber">Trail Guide</b> — ${esc(guideBlurb(stop.concept))}
       <div>Study more: <a style="color:var(--amber)" href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Analyst Prep Kit</a></div></div>`;
-  document.getElementById('sqlIn').focus();
+  mountEditor('sqlHost');
 }
 
 function guideBlurb(concept) {
@@ -259,14 +349,17 @@ function takeHint() {
 function submitAnswer() {
   const stop = C.STOPS[run.stop - 1];
   const q = stop.questions[qState.idx];
-  const sqlText = document.getElementById('sqlIn').value;
+  const sqlText = editor ? editor.getValue() : '';
   qState.attempts++;
+  const t0 = performance.now();
   const r = G.grade(SQL, C.SEED_SQL, q, sqlText);
+  const execMs = Math.max(1, Math.round(performance.now() - t0));
   const out = document.getElementById('result');
 
   if (r.tier === 'fail' && (r.reason === 'rejected' || r.reason === 'sql-error')) {
-    out.innerHTML = `<p class="red">${esc(r.error || 'That did not run.')}</p>`;
-    return; // free retry on syntax/sandbox errors — the trail punishes wrong answers, not typos
+    // Free retry on syntax/sandbox errors — the trail punishes wrong answers, not typos.
+    out.innerHTML = queryOutput(r, q, execMs, null);
+    return;
   }
 
   const timeMs = Date.now() - qState.startedAt;
@@ -274,20 +367,56 @@ function submitAnswer() {
     const reward = E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
     if (r.tier === 'full') qState.correctCount++;
     out.innerHTML = `
+      ${queryOutput(r, q, execMs, null)}
       ${r.tier === 'full'
         ? `<p class="amber">Correct. You gathered ${reward} lbs of supplies.</p>`
         : `<p class="amber">Partial credit (${Math.round(r.overlap * 100)}% of rows). You gathered ${reward} lbs but could only carry half.</p>`}
-      ${renderRows(r.playerRes)}
       <button onclick="nextQuestion()">Continue</button>`;
   } else {
     E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
     out.innerHTML = `
-      <p class="red">Wrong rows came back. The party goes a little hungrier.</p>
-      ${renderRows(r.playerRes)}
+      ${queryOutput(r, q, execMs, null)}
+      <p class="red">The query ran, but the rows are wrong. The party goes a little hungrier.</p>
       <button onclick="screenQuestion()">Try again</button>
       <button onclick="nextQuestion()">Move on</button>`;
   }
   if (run.dead) screenTombstone();
+}
+
+// Real-world query editor output: Results grid + Messages tab.
+function queryOutput(r, q, execMs) {
+  const isWrite = q.type === 'write';
+  const messages = [];
+  if (r.reason === 'rejected' || r.reason === 'sql-error') {
+    messages.push(`<div class="msgline err">Error: ${esc(r.error || 'query failed')}</div>`);
+  } else if (isWrite) {
+    messages.push(r.rowsAffected > 0
+      ? `<div class="msgline">(${r.rowsAffected} row${r.rowsAffected === 1 ? '' : 's'} affected)</div>`
+      : `<div class="msgline">Commands completed successfully.</div>`);
+    messages.push(`<div class="msgline">Completion time: ${execMs} ms</div>`);
+  } else {
+    const n = r.playerRes ? r.playerRes.values.length : 0;
+    messages.push(`<div class="msgline">(${n} row${n === 1 ? '' : 's'} returned in ${execMs} ms)</div>`);
+  }
+  const hasGrid = r.playerRes && r.playerRes.columns.length;
+  const gridLabel = isWrite && hasGrid ? '<div class="dim" style="margin-bottom:4px">Table state after your statement:</div>' : '';
+  const results = hasGrid ? gridLabel + renderRows(r.playerRes) : '<div class="msgline dim">No result set.</div>';
+  const startTab = (r.reason === 'rejected' || r.reason === 'sql-error') ? 'msg' : 'res';
+  const uid = 'out' + Date.now();
+  return `
+    <div class="outtabs">
+      <button id="${uid}-tres" class="${startTab === 'res' ? 'on' : ''}" onclick="showOutTab('${uid}','res')">Results</button>
+      <button id="${uid}-tmsg" class="${startTab === 'msg' ? 'on' : ''}" onclick="showOutTab('${uid}','msg')">Messages</button>
+    </div>
+    <div id="${uid}-res" class="outpane" style="display:${startTab === 'res' ? 'block' : 'none'}">${results}</div>
+    <div id="${uid}-msg" class="outpane" style="display:${startTab === 'msg' ? 'block' : 'none'}">${messages.join('')}</div>`;
+}
+
+function showOutTab(uid, tab) {
+  for (const t of ['res', 'msg']) {
+    document.getElementById(`${uid}-${t}`).style.display = t === tab ? 'block' : 'none';
+    document.getElementById(`${uid}-t${t}`).classList.toggle('on', t === tab);
+  }
 }
 
 function skipQuestion() {
@@ -299,10 +428,13 @@ function skipQuestion() {
 
 function renderRows(res) {
   if (!res || !res.columns.length) return '<p class="dim">(no rows returned)</p>';
-  const head = '<tr>' + res.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
-  const body = res.values.slice(0, 20).map(r =>
-    '<tr>' + r.map(v => `<td>${v === null ? '<span class="dim">NULL</span>' : esc(v)}</td>`).join('') + '</tr>').join('');
-  const more = res.values.length > 20 ? `<p class="dim">…${res.values.length - 20} more rows</p>` : '';
+  const head = '<tr><th class="dim">#</th>' + res.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+  const body = res.values.slice(0, 50).map((r, i) =>
+    `<tr><td class="dim gridnum">${i + 1}</td>` + r.map(v =>
+      v === null ? '<td><span class="dim">NULL</span></td>'
+      : typeof v === 'number' ? `<td class="gridnum">${esc(v)}</td>`
+      : `<td>${esc(v)}</td>`).join('') + '</tr>').join('');
+  const more = res.values.length > 50 ? `<p class="dim">…${res.values.length - 50} more rows</p>` : '';
   return `<table>${head}${body}</table>${more}`;
 }
 
@@ -403,6 +535,7 @@ function screenHistory() {
 // ---------- boot ----------
 (async () => {
   SQL = await initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}` });
+  buildSchemaHints();
   screenTitle();
 })();
 </script>
