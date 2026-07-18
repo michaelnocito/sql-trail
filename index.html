@@ -136,14 +136,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/sql-hint.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
-<script src="js/rng.js"></script>
-<script src="js/grader.js"></script>
-<script src="js/engine.js"></script>
-<script src="content/content.js"></script>
+<script>
+// BUILD stamps the local script URLs so index.html and its JS can never be
+// cached out of sync. Bump together with version.json on every deploy.
+const BUILD = 15;
+['js/rng.js', 'js/grader.js', 'js/engine.js', 'content/content.js'].forEach(s =>
+  document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
+</script>
 <script>
 'use strict';
 const C = TrailContent, E = TrailEngine, G = TrailGrader;
-const BUILD = 14; // bump together with version.json on every deploy
 
 // GH Pages caches for 10 min; browsers hold old tabs longer. Compare the
 // running build against the deployed one (fetched uncached) and reload once
