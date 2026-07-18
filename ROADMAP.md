@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 16 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 17 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -22,6 +22,13 @@
 - Tap-token query builder: Type/Build tabs above the editor; pad shows keywords, functions, tables, qualified columns, values, operators derived per question; assembles into the same editor/grader path; coarse-pointer devices default to Build
 - Stop 4 curriculum: JOINs (5 questions — inner, join+WHERE, LEFT JOIN anti-join, join+GROUP BY/MIN, 3-way join via new `forts` table)
 - Gray-box boundary moved from stop 3 to stop 4
+
+### Batch 2.5 — Hybrid retro-modern restyle (SHIPPED build 17, awaiting Mike's test)
+Mike's direction: modern white + dusty brown chrome, modern QoL/game-design clarity, retro callouts to the original look. Research: Gameloft 2021 remake pattern (retro as accents inside modern chrome) + retro-UX best practice (retro visuals selective; hierarchy, contrast, responsiveness stay modern).
+- Palette: warm paper white + dusty brown UI, rust accents; readable system/serif type; rounded cards, chip statbar, button hierarchy (filled primary vs outline)
+- Retro preserved as .crt callouts: trail map, arrival vignettes, river art, travel animation, tombstone, title tagline (green phosphor + scanlines)
+- Orientation QoL: 🎯 "Your task" callout per question, question progress dots, "next step" guidance lines on outfitter/travel/arrival screens
+- Dark VS Code editor/results/build-pad kept as the "pro tool" zone
 
 ### Batch 3 — Curriculum depth
 - Stop 5: subqueries + CTEs (5 questions)

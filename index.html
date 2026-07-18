@@ -8,55 +8,117 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
 <style>
+  /* ============================================================
+     Hybrid retro-modern (Batch: modernize). Chrome is modern —
+     warm paper white + dusty brown, readable type, clear button
+     hierarchy. The ORIGINAL green-CRT look survives as callouts:
+     .crt panels (trail map, vignettes, tombstone, hint answers)
+     keep the phosphor-green-on-black + scanlines as deliberate
+     nods to the Apple II original.
+     ============================================================ */
   :root {
-    --bg: #0a0a08; --fg: #33ff33; --dim: #1d8f1d; --amber: #ffb000;
-    --red: #ff5544; --panel: #101410; --border: #1d8f1d;
+    --paper: #f6f1e6;          /* modern warm white */
+    --card: #fffcf5;
+    --ink: #3a2f22;            /* dusty dark brown text */
+    --muted: #8a7a63;          /* secondary text */
+    --brown: #8b6f4e;          /* dusty brown borders/UI */
+    --brown-dark: #5b4632;     /* primary buttons / headings */
+    --accent: #b0562c;         /* rust — highlights, links, warnings-lite */
+    --red: #a8322a;
+    --gold: #f3e8cf;           /* soft highlight fill */
+    /* retro callout palette (the original's CRT) */
+    --crt-bg: #0b100b; --crt-fg: #33ff33; --crt-dim: #1d8f1d; --crt-amber: #ffb000;
+    /* aliases kept so existing markup restyles itself */
+    --dim: var(--muted); --amber: var(--accent); --panel: var(--card); --border: var(--brown);
+    --bg: var(--paper); --fg: var(--ink);
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font-family: "Courier New", ui-monospace, monospace;
-    font-size: 16px; line-height: 1.45;
-    text-shadow: 0 0 6px rgba(51,255,51,.35);
-  }
-  /* CRT scanlines */
-  body::after {
-    content: ""; position: fixed; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+    margin: 0; background: var(--paper); color: var(--ink);
+    background-image: radial-gradient(ellipse at top, #fbf7ee 0%, var(--paper) 60%);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 16px; line-height: 1.5;
   }
   #app { max-width: 760px; margin: 0 auto; padding: 16px 12px 60px; }
-  h1, h2 { color: var(--amber); text-shadow: 0 0 8px rgba(255,176,0,.4); margin: .4em 0; }
-  h1 { font-size: 1.6em; letter-spacing: 2px; }
-  .panel { border: 2px solid var(--border); background: var(--panel); padding: 12px; margin: 12px 0; }
-  .dim { color: var(--dim); }
-  .amber { color: var(--amber); }
-  .red { color: var(--red); }
+  h1, h2 { color: var(--brown-dark); font-family: Georgia, "Times New Roman", serif; margin: .4em 0; }
+  h1 { font-size: 1.7em; letter-spacing: 2px; }
+  h2 { font-size: 1.25em; border-bottom: 2px solid var(--brown); padding-bottom: 4px; }
+  .panel {
+    border: 1px solid #d8cbb4; background: var(--card); padding: 14px;
+    margin: 12px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(90,70,50,.12);
+  }
+  .dim { color: var(--muted); }
+  .amber { color: var(--accent); font-weight: 600; }
+  .red { color: var(--red); font-weight: 600; }
+  a { color: var(--accent); }
   button {
-    background: var(--bg); color: var(--fg); border: 2px solid var(--fg);
-    font: inherit; padding: 8px 14px; cursor: pointer; margin: 4px 4px 4px 0;
-    text-shadow: inherit; min-height: 44px;
+    background: var(--card); color: var(--brown-dark); border: 1.5px solid var(--brown);
+    font: inherit; font-weight: 600; padding: 8px 16px; cursor: pointer;
+    margin: 4px 4px 4px 0; min-height: 44px; border-radius: 6px;
+    transition: background .12s, transform .06s, box-shadow .12s;
   }
-  button:hover, button:focus { background: var(--fg); color: var(--bg); text-shadow: none; }
-  button:disabled { border-color: var(--dim); color: var(--dim); cursor: default; }
-  button:disabled:hover { background: var(--bg); color: var(--dim); }
+  button:hover, button:focus-visible { background: var(--gold); box-shadow: 0 1px 4px rgba(90,70,50,.2); }
+  button:active { transform: translateY(1px); }
+  button.primary { background: var(--brown-dark); color: #fff8ec; border-color: var(--brown-dark); }
+  button.primary:hover, button.primary:focus-visible { background: #6f5740; }
+  button:disabled { border-color: #d8cbb4; color: #b7a88f; background: var(--card); cursor: default; box-shadow: none; }
   input[type=text], input[type=number], textarea {
-    background: #000; color: var(--fg); border: 1px solid var(--dim);
-    font: inherit; padding: 8px; width: 100%;
+    background: #fff; color: var(--ink); border: 1.5px solid #cbbb9e;
+    font: inherit; padding: 8px 10px; width: 100%; border-radius: 6px;
   }
+  input:focus-visible, textarea:focus-visible { outline: 2px solid var(--brown); outline-offset: 1px; }
   textarea { min-height: 110px; }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: .92em; }
-  th, td { border: 1px solid var(--dim); padding: 3px 8px; text-align: left; }
-  th { color: var(--amber); }
-  .statbar { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .9em; }
-  .trailmap { white-space: pre; overflow-x: auto; font-size: .85em; line-height: 1.2; }
+  th, td { border: 1px solid #ddd0ba; padding: 4px 8px; text-align: left; }
+  th { color: var(--brown-dark); background: var(--gold); }
+  tr:nth-child(even) td { background: #faf5ea; }
+  /* modern stat chips */
+  .statbar { display: flex; flex-wrap: wrap; gap: 6px; font-size: .88em; }
+  .statbar > span {
+    background: var(--gold); border: 1px solid #e2d5bc; border-radius: 999px;
+    padding: 3px 10px; white-space: nowrap;
+  }
   .row { display: flex; flex-wrap: wrap; gap: 8px; }
   .row > div { flex: 1 1 140px; }
   .center { text-align: center; }
-  .tomb { white-space: pre; font-size: .9em; line-height: 1.15; color: var(--dim); }
-  label { display: block; margin: 6px 0 2px; }
+  label { display: block; margin: 6px 0 2px; font-weight: 600; font-size: .92em; }
   #toast { position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-    background: var(--panel); border: 2px solid var(--amber); color: var(--amber);
-    padding: 8px 16px; display: none; max-width: 90vw; }
+    background: var(--brown-dark); border: none; color: #fff8ec; border-radius: 8px;
+    padding: 10px 18px; display: none; max-width: 90vw; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
+
+  /* --- Retro CRT callouts: the original game lives in these insets --- */
+  .crt {
+    position: relative; background: var(--crt-bg); color: var(--crt-fg);
+    border: 2px solid #2c2c24; border-radius: 8px; padding: 12px;
+    font-family: "Courier New", ui-monospace, monospace;
+    text-shadow: 0 0 6px rgba(51,255,51,.35); overflow: hidden;
+  }
+  .crt::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.2) 0 1px, transparent 1px 3px);
+    border-radius: 6px;
+  }
+  .crt .dim { color: var(--crt-dim); }
+  .crt .amber, .crt b { color: var(--crt-amber); font-weight: 600; }
+  .trailmap { white-space: pre; overflow-x: auto; font-size: .85em; line-height: 1.2; }
+  .tomb { white-space: pre; font-size: .9em; line-height: 1.15; color: var(--crt-fg); }
+
+  /* --- Orientation aids: the player always knows what to do --- */
+  .objective {
+    background: var(--gold); border-left: 4px solid var(--accent); border-radius: 6px;
+    padding: 10px 12px; margin: 8px 0; font-size: 1.02em;
+  }
+  .objective .tag { color: var(--accent); font-weight: 700; font-size: .8em;
+    text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 2px; }
+  .qdots { display: inline-flex; gap: 5px; vertical-align: middle; margin-left: 8px; }
+  .qdots i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--brown); background: transparent; }
+  .qdots i.done { background: var(--brown); }
+  .qdots i.now { background: var(--accent); border-color: var(--accent); }
+  .nextstep { color: var(--muted); font-size: .92em; margin: 4px 0 10px; }
+  /* stat chips inside a CRT callout go phosphor, not gold */
+  .crt .statbar > span { background: transparent; border-color: #234223; color: var(--crt-fg); }
+  /* dark "pro tool" panes share the modern radius */
+  .outpane, .buildpad, .schemastrip, .CodeMirror.cm-s-trail { border-radius: 6px; }
 
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
   .CodeMirror.cm-s-trail {
@@ -165,7 +227,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 16;
+const BUILD = 17;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -295,7 +357,7 @@ function trailMap() {
     const passed = run && run.stop > i + 1;
     line += (passed ? '══' : '──') + (here ? '[◆]' : passed ? '[■]' : '[ ]');
   });
-  return `<div class="panel trailmap">START ${line}══► OREGON\n<span class="dim">stop ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
+  return `<div class="panel crt trailmap">START ${line}══► OREGON\n<span class="dim">stop ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
 }
 
 // ---------- screens ----------
@@ -303,13 +365,15 @@ function trailMap() {
 function screenTitle() {
   app.innerHTML = `
     <h1 class="center">S Q L &nbsp; T R A I L</h1>
-    <p class="center dim">You have died of a Cartesian product.<br>…not yet, anyway.</p>
+    <div class="panel crt center">
+      <p style="margin:4px 0">You have died of a Cartesian product.<br><span class="dim">…not yet, anyway.</span></p>
+    </div>
     <div class="panel">
       <p>Travel the trail. At every rest stop, interview-grade SQL decides whether your party eats.</p>
       <p class="dim">v${C.GAME_VERSION} build ${BUILD} — fixed trail, fixed questions, seeded events. Beat your own last run.</p>
     </div>
     <div class="center">
-      <button onclick="screenOutfit()">Head west</button>
+      <button class="primary" onclick="screenOutfit()">Head west ▸</button>
       <button onclick="screenHistory()">Journey records</button>
     </div>`;
 }
@@ -336,7 +400,8 @@ function screenOutfit() {
       </div>
       <p id="allocSum" class="dim"></p>
     </div>
-    <div class="center"><button onclick="startRun()">Hitch the oxen</button></div>`;
+    <p class="nextstep center">Name the party, split the budget, then hitch up — the trail starts at stop 1 of 9.</p>
+    <div class="center"><button class="primary" onclick="startRun()">Hitch the oxen ▸</button></div>`;
   const upd = () => {
     const s = ['aFood','aParts','aMeds'].reduce((t, id) => t + (+document.getElementById(id).value || 0), 0);
     const el = document.getElementById('allocSum');
@@ -371,7 +436,8 @@ function screenTravel() {
         <div><label>Rations</label>${sel('rations', Object.keys(E.RATIONS), run.rations)}</div>
       </div>
     </div>
-    <div class="center"><button onclick="doTravel()">Continue on trail</button></div>
+    <p class="nextstep center">Pick a pace and rations (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
+    <div class="center"><button class="primary" onclick="doTravel()">Continue on trail ▸</button></div>
     ${logPanel()}`;
   function sel(key, opts, cur) {
     return opts.map(o =>
@@ -405,8 +471,8 @@ function screenRiver() {
     ${trailMap()}${statbar()}
     <h2>🌊 The ${esc(river.name)}</h2>
     <div class="panel">
-      <pre style="margin:0">  ～～～～～～～～～～～～～～\n ～～～ 🛶 ～～～～～ 🌊 ～～\n  ～～～～～～～～～～～～～～</pre>
-      <p>The river blocks the trail. How do you cross?</p>
+      <div class="crt"><pre style="margin:0">  ～～～～～～～～～～～～～～\n ～～～ 🛶 ～～～～～ 🌊 ～～\n  ～～～～～～～～～～～～～～</pre></div>
+      <div class="objective"><span class="tag">Decision</span>The river blocks the trail. Pick one way across — outcomes repeat every run, so what you learn here you can plan around.</div>
       <button onclick="doCross('ford')">Ford it (free, risky)</button>
       <button onclick="doCross('caulk')">Caulk &amp; float (free, safer)</button>
       <button onclick="doCross('ferry')" ${run.money < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry}, safe)</button>
@@ -430,11 +496,12 @@ function screenArrival() {
   app.innerHTML = `
     ${trailMap()}${statbar()}
     <h2>You have arrived at ${esc(stop.name)}</h2>
-    <div class="panel center">
+    <div class="panel crt center">
       <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
       <p class="dim">${esc(v.flavor)}</p>
     </div>
-    <div class="center"><button onclick="startStop()">Enter the ${esc(stop.theme.toLowerCase())} challenge</button></div>`;
+    <p class="nextstep center">Next: ${stop.questions.length || 5} ${esc(stop.concept)} questions. Full-credit answers feed the party.</p>
+    <div class="center"><button class="primary" onclick="startStop()">Enter the ${esc(stop.theme.toLowerCase())} challenge ▸</button></div>`;
 }
 
 // The classic OT travel screen: wagon rolls across the landscape while the
@@ -450,7 +517,7 @@ function screenTravelAnim(pre) {
   app.innerHTML = `
     ${trailMap()}
     <h2>On the trail — toward ${esc(dest.name)}</h2>
-    <div class="panel">
+    <div class="panel crt">
       <pre id="scene" style="margin:0;line-height:1.15;font-size:.85em;overflow:hidden"></pre>
       <div class="statbar" style="margin-top:6px">
         <span>📅 Day <b id="animDay">${pre.day}</b></span>
@@ -521,8 +588,10 @@ function screenQuestion() {
     <h2>${esc(stop.name)} — ${esc(stop.concept)}</h2>
     ${qState.idx === 0 && stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
     <div class="panel">
-      <b class="amber">Question ${qState.idx + 1} of ${stop.questions.length}</b>
-      <p>${esc(q.prompt)}</p>
+      <b>Question ${qState.idx + 1} of ${stop.questions.length}</b>
+      <span class="qdots">${stop.questions.map((_, i) =>
+        `<i class="${i < qState.idx ? 'done' : i === qState.idx ? 'now' : ''}"></i>`).join('')}</span>
+      <div class="objective"><span class="tag">🎯 Your task</span>${esc(q.prompt)}</div>
       ${hints}
       <div class="modetabs">
         <button class="${inputMode === 'type' ? 'on' : ''}" onclick="setInputMode('type')">⌨ Type</button>
@@ -535,7 +604,7 @@ function screenQuestion() {
       ${inputMode === 'build' ? builderHtml(q) : ''}
       ${schemaStripHtml(q)}
       <div>
-        <button onclick="submitAnswer()">▶ Execute</button>
+        <button class="primary" onclick="submitAnswer()">▶ Execute</button>
         <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
           ${qState.hintsShown >= 2 ? 'Show answer' : `Hint ${qState.hintsShown + 1}`}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
         </button>
@@ -745,7 +814,7 @@ function screenTombstone() {
   saveHistory(false);
   app.innerHTML = `
     <h2 class="center red">The whole party has died.</h2>
-    <div class="panel tomb center">      _______
+    <div class="panel crt tomb center">      _______
      /       \\
     |  R.I.P  |
     |         |
@@ -792,7 +861,7 @@ function screenReport(finished) {
       <p class="dim">The gray-box currently covers stops 1-4. Stops 5-9 and the full Journey Report land in later batches.</p>
     </div>
     <div class="center">
-      <button onclick="screenOutfit()">Run it again</button>
+      <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
       <button onclick="screenTitle()">Title</button>
     </div>`;
 }
