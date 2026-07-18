@@ -189,6 +189,8 @@ function mountEditor(hostId) {
     mode: 'text/x-sql',
     theme: 'trail',
     lineNumbers: true,
+    lineWrapping: true,          // long queries wrap — no ugly native h-scrollbar
+    scrollbarStyle: 'null',
     matchBrackets: true,
     autoCloseBrackets: true,
     autofocus: true,
