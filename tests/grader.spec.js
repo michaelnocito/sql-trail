@@ -115,16 +115,15 @@ function check(name, cond, detail) {
   const s4 = Content.STOPS[3];
   const tapAnswers = {
     '4-1': 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item',
-    '4-2': "SELECT supplies.item, supplies.qty, fort_inventory.price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item WHERE fort_inventory.fort = 'Fort Laramie'",
     '4-3': 'SELECT supplies.item FROM supplies LEFT JOIN fort_inventory ON supplies.item = fort_inventory.item WHERE fort_inventory.item IS NULL',
-    '4-4': 'SELECT supplies.item, MIN(fort_inventory.price) FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item GROUP BY supplies.item',
     '4-5': 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price, forts.miles FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item JOIN forts ON fort_inventory.fort = forts.fort ORDER BY forts.miles, supplies.item',
   };
   for (const q of s4.questions) {
     const r = g(q, tapAnswers[q.id]);
     check(`Q${q.id} unaliased tap query = full`, r.tier === 'full', r.reason + (r.error ? ': ' + r.error : ''));
   }
-  check('stop 4 has 5 questions and a 3-way join', s4.questions.length === 5 && /JOIN forts/.test(s4.questions[4].answer));
+  check('stops cap at 3 questions', Content.STOPS.every(s => s.questions.length === 0 || s.questions.length === 3));
+  check('stop 4 ends on a 3-way join', /JOIN forts/.test(s4.questions[2].answer));
 
   console.log('engine');
   const run = Engine.newRun(Content, ['You', 'Ada', 'Edgar', 'Codd'], { food: 100, parts: 40, medicine: 12 });

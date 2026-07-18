@@ -227,7 +227,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 17;
+const BUILD = 18;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -500,7 +500,7 @@ function screenArrival() {
       <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
       <p class="dim">${esc(v.flavor)}</p>
     </div>
-    <p class="nextstep center">Next: ${stop.questions.length || 5} ${esc(stop.concept)} questions. Full-credit answers feed the party.</p>
+    <p class="nextstep center">Next: ${stop.questions.length || 3} ${esc(stop.concept)} questions. Full-credit answers feed the party.</p>
     <div class="center"><button class="primary" onclick="startStop()">Enter the ${esc(stop.theme.toLowerCase())} challenge ▸</button></div>`;
 }
 
@@ -574,14 +574,11 @@ function startStop() {
 function screenQuestion() {
   const stop = C.STOPS[run.stop - 1];
   const q = stop.questions[qState.idx];
-  // Hints 1-2 are nudges; hint 3 is the full answer, ready to copy or paste.
+  // Hints 1-2 are nudges; hint 3 auto-pastes the full answer into the editor.
   const hints = q.hints.slice(0, Math.min(qState.hintsShown, 2)).map((h, i) =>
     `<div class="dim">Hint ${i + 1}: ${esc(h)}</div>`).join('')
-    + (qState.hintsShown >= 3 ? `
-      <div class="dim">Hint 3 — the full answer:</div>
-      <div style="border:1px solid var(--dim);background:#0d0d0b;padding:8px;font-family:Consolas,monospace;text-shadow:none;color:#d4d4d4">${esc(q.answer)}</div>
-      <button style="min-height:34px;padding:4px 12px" onclick="copyAnswer()">Copy</button>
-      <button style="min-height:34px;padding:4px 12px" onclick="pasteAnswer()">Paste into editor</button>` : '');
+    + (qState.hintsShown >= 3
+      ? '<div class="amber">Hint 3: the full answer is in the editor below — read it, then ▶ Execute.</div>' : '');
   const nextHintCost = E.hintCost(qState.hintsShown);
   app.innerHTML = `
     ${trailMap()}${statbar()}
@@ -677,24 +674,17 @@ function guideBlurb(concept) {
   return g[concept] || concept;
 }
 
-function currentAnswer() {
-  return C.STOPS[run.stop - 1].questions[qState.idx].answer;
-}
-function copyAnswer() {
-  navigator.clipboard.writeText(currentAnswer())
-    .then(() => toast('Answer copied.'))
-    .catch(() => toast('Copy blocked — use Paste into editor instead.'));
-}
-function pasteAnswer() {
-  if (editor) { editor.setValue(currentAnswer()); editor.focus(); }
-}
-
 function takeHint() {
   const cost = E.hintCost(qState.hintsShown);
   if (cost > 0 && run.food < cost) return toast('Not enough food for that hint.');
   run.food -= cost;
   qState.hintsShown++;
   screenQuestion();
+  if (qState.hintsShown >= 3 && editor) {
+    buildTokens = [];
+    editor.setValue(C.STOPS[run.stop - 1].questions[qState.idx].answer);
+    editor.focus();
+  }
 }
 
 function submitAnswer() {

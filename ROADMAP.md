@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 17 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 18 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -30,13 +30,19 @@ Mike's direction: modern white + dusty brown chrome, modern QoL/game-design clar
 - Orientation QoL: 🎯 "Your task" callout per question, question progress dots, "next step" guidance lines on outfitter/travel/arrival screens
 - Dark VS Code editor/results/build-pad kept as the "pro tool" zone
 
+### Feedback shipped between batches (build 18, 2026-07-18)
+Mike: 5 questions per stop was too many; hint 3 should just paste.
+- All stops trimmed to 3 questions (SELECT */DISTINCT/computed · WHERE/AND/WHERE+ORDER BY · COUNT/GROUP BY/HAVING · inner/LEFT anti-join/3-way). Dropped concepts (IN, ORDER BY DESC solo, SUM+WHERE, join+WHERE, join+MIN) can resurface in stops 5-9 questions.
+- Hint 3 auto-pastes the canonical answer into the editor; Copy/Paste buttons removed.
+- Watch item: stop rewards were tuned for 5 questions — with 3, food income per stop drops ~40%; check survivability in Mike's next full run.
+
 ### Batch 3 — Curriculum depth
-- Stop 5: subqueries + CTEs (5 questions)
-- Stop 6: CASE + conditional aggregation (5 questions)
-- Stop 7: window functions (5 questions)
+- Stop 5: subqueries + CTEs (3 questions)
+- Stop 6: CASE + conditional aggregation (3 questions)
+- Stop 7: window functions (3 questions)
 
 ### Batch 4 — Finish the trail
-- Stop 8: date & string functions (5 questions)
+- Stop 8: date & string functions (3 questions)
 - Stop 9: capstone (one scenario, 3 chained questions)
 - Full-trail run end to end; tombstone/report flows at real length
 
