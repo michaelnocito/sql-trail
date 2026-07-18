@@ -63,7 +63,7 @@ function check(name, cond, detail) {
 
   console.log('write (DDL/DML) grading');
   const q11 = Content.STOPS[0].questions[0];
-  check('stop 1 create table full credit', g(q11, 'CREATE TABLE provisions (item TEXT, lbs INTEGER)').tier === 'full');
+  check('stop 1 insert full credit', g(q11, "INSERT INTO supplies (item, category, qty, unit_cost) VALUES ('salt pork','food',100,0.45)").tier === 'full');
   const q31 = Content.STOPS[2].questions[0];
   check('stop 3 update full credit', g(q31, "UPDATE supplies SET qty = 65 WHERE item='bacon'").tier === 'full');
   check('stop 3 unaimed update fails', g(q31, 'UPDATE supplies SET qty = qty - 15').tier !== 'full');
