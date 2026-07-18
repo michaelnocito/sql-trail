@@ -11,7 +11,9 @@ SQL Trail: an Oregon Trail homage that trains data analysts for interview-grade 
 - **GDD:** C:\Users\Mike\Downloads\SQL_TRAIL_GDD.md (NOT committed — keep it out of the public repo)
 - **Stack:** static site, no build step. sql.js 1.10.2 + CodeMirror 5.65.16 from cdnjs. Tests: `npm test` (node, sql.js dev dep).
 
-## State at handoff (build 16)
+## State at handoff (build 17)
+
+Build 17 added the hybrid retro-modern restyle (Batch 2.5 in ROADMAP.md): modern paper-white + dusty-brown chrome, `.crt` green-phosphor callout panels (trail map, vignettes, river, travel animation, tombstone, title tagline), 🎯 "Your task" objective callouts, question progress dots, `.primary` button hierarchy, "nextstep" guidance lines. Keep new screens consistent with these classes.
 
 Shipped and live-verified: engine (js/engine.js), grader with sandbox + partial credit (js/grader.js), seeded RNG (js/rng.js), tap-token builder logic (js/builder.js — padFor/assemble, index.html renders the Type/Build tabs), stops 1-4 content (content/content.js: SELECT / WHERE-ORDER BY / aggregates / JOINs incl. a 3-way via the `forts` table), CodeMirror editor with autocomplete, per-question schema strip, Results/Messages tabs, hint ladder (hint 3 = full answer), travel animation, river crossings, arrival vignettes, arrival-condition scoring, cause-of-death flavor, local run history. Gray-box boundary is after stop 4.
 
