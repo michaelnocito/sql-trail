@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 28 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 29 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -21,6 +21,12 @@ Mike's direction: use his own art (art site michaelnocito.github.io/art) in the 
   - `bg-cornfield.png` — "Fall" pen sketch (scarecrows + signpost + cornfield); harvest/directions (top-right margin).
 - Kept the warm paper glow + grain layers. Placement uses clamp() sizes so art hugs the margins on desktop and stays behind cards on mobile. Processing script kept in scratchpad (PIL); source JPGs pulled from the art site.
 - 127 tests green; browser-verified home + outfitter screens (art faint, UI cards clean on top).
+
+### Batch 8.6 — Backdrop refine: lake only + railroad tracks (SHIPPED build 29)
+Mike's direction: keep only the lake scene; rework its dock to look like railroad tracks.
+- Removed `bg-bonfire.png` and `bg-cornfield.png` (files + body::before layers). Only `bg-lake.png` remains as the backdrop.
+- Reworked the dock into railroad tracks: two tapered steel rails (dark body + metal-glint highlight) drawn in perspective at ~30%/70% of the dock width, converging toward the waterline; the existing cross-planks read as ties. Drawn at 2× supersample on the source charcoal, then re-run through the same sepia pipeline. Script: scratchpad/make_rails.py.
+- Reads as the trail heading west into the mountains. 127 tests green; browser-verified.
 
 ### Roguelite reboot (SHIPPED build 21, awaiting Mike's test)
 Mike's direction: too many resources; make it roguelite — at each town, choose between 3 query "cards" (rogue-lite draft), each a funny story tie-in.
