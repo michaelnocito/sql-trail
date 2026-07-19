@@ -39,7 +39,7 @@
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     font-size: 16px; line-height: 1.5;
   }
-  #app { max-width: 760px; margin: 0 auto; padding: 16px 12px 60px; }
+  #app { max-width: 860px; margin: 0 auto; padding: 16px 12px 60px; }
   h1, h2 { color: var(--brown-dark); font-family: Georgia, "Times New Roman", serif; margin: .4em 0; }
   h1 { font-size: 1.7em; letter-spacing: 2px; }
   h2 { font-size: 1.25em; border-bottom: 2px solid var(--brown); padding-bottom: 4px; }
@@ -315,6 +315,24 @@
   .outpane::-webkit-scrollbar-thumb, .trailmap::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
   /* CodeMirror wraps lines; kill its native scrollbar chrome entirely */
   .CodeMirror-hscrollbar, .CodeMirror-vscrollbar, .CodeMirror-scrollbar-filler { display: none !important; }
+
+  /* Desktop: use the window — wider column, larger type, roomier panels.
+     Lives LAST in the sheet so its overrides win the specificity ties. */
+  @media (min-width: 900px) {
+    body { font-size: 18px; }
+    #app { max-width: 1020px; padding: 24px 20px 80px; }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.45em; }
+    .panel { padding: 18px 20px; }
+    .crt { padding: 16px 18px; }
+    .trailmap { font-size: 1em; }
+    .statbar { font-size: .95em; }
+    .hbar { width: 200px; }
+    button { padding: 10px 20px; }
+    .CodeMirror.cm-s-trail { font-size: 17px; min-height: 170px; }
+    .schemastrip, .buildpad { font-size: .95em; }
+    .outpane { max-height: 380px; }
+  }
 </style>
 </head>
 <body>
@@ -332,7 +350,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 25;
+const BUILD = 26;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -581,7 +599,7 @@ function statbar() {
     const col = hp > 50 ? '#6f9e4e' : hp > 25 ? '#c98a2c' : '#a8322a';
     return `<span style="background:none;border:none;padding:0">
       <span class="dim">${esc(m.name)}</span>
-      <span class="hbar" style="width:110px"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
+      <span class="hbar" style="max-width:26vw"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
       <b style="color:${col}">${hp}</b></span>`;
   };
   return `<div class="panel statbar" id="statbar">
