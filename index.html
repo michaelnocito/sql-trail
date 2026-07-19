@@ -332,7 +332,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 23;
+const BUILD = 24;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -537,22 +537,58 @@ function pipsHtml() {
 }
 // Live-refresh the top stat bar in place (after a mid-card reward or penalty).
 function refreshStat() {
+  processGraves();
   const el = document.getElementById('statbar');
   if (el) el.outerHTML = statbar();
 }
 
+// ---------- gravestones (individual deaths, remembered across runs) ----------
+const GRAVES_KEY = 'sql-trail-graves-v1';
+function loadGraves() {
+  try { return JSON.parse(localStorage.getItem(GRAVES_KEY)) || []; } catch { return []; }
+}
+// Any member newly dead since last check: announce them, carve the stone.
+function processGraves() {
+  if (!run || !run.graves) return;
+  run._gravesSeen = run._gravesSeen || 0;
+  while (run._gravesSeen < run.graves.length) {
+    const g = run.graves[run._gravesSeen++];
+    const stones = loadGraves();
+    stones.push({ name: g.name, cause: g.cause, day: g.day, stop: g.stop, v: run.version, at: Date.now() });
+    try { localStorage.setItem(GRAVES_KEY, JSON.stringify(stones.slice(-60))); } catch { /* full */ }
+    fxBanner(`💀 ${g.name} has died of ${g.cause}`, '#3a2f22');
+    fxFlash('rgba(58,47,34,.45)');
+  }
+}
+// Graves from PREVIOUS runs near this town — the classic "you pass a grave".
+function pastGravesHtml(stop) {
+  const old = loadGraves().filter(g => g.stop === stop && (!run.startedAt || g.at < run.startedAt)).slice(-2);
+  if (!old.length) return '';
+  return `<div class="panel crt center">${old.map(g => `<pre style="margin:4px 0;line-height:1.2">    ___________
+   /           \\
+  |  HERE LIES  |
+  |  ${esc(g.name).padEnd(9)}  |
+  |_____________|</pre>
+    <p class="dim" style="margin:2px 0">${esc(g.name)} — lost to ${esc(g.cause)}, day ${g.day}, a previous run.</p>`).join('')}
+  </div>`;
+}
+
 function statbar() {
-  const hp = Math.max(0, Math.min(100, run.health));
-  const col = hp > 50 ? '#6f9e4e' : hp > 25 ? '#c98a2c' : '#a8322a';
+  const memberBar = m => {
+    if (m.dead) return `<span style="background:none;border:none;padding:0">
+      <span class="dim" style="text-decoration:line-through">${esc(m.name)}</span> <span class="dim">✝</span></span>`;
+    const hp = Math.max(0, Math.min(100, m.health));
+    const col = hp > 50 ? '#6f9e4e' : hp > 25 ? '#c98a2c' : '#a8322a';
+    return `<span style="background:none;border:none;padding:0">
+      <span class="dim">${esc(m.name)}</span>
+      <span class="hbar" style="width:110px"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
+      <b style="color:${col}">${hp}</b></span>`;
+  };
   return `<div class="panel statbar" id="statbar">
     <span>📅 Day <b>${run.day}</b></span>
     <span>🌾 <b>${run.food}</b> lbs</span>
     <span>💰 $<b>${run.coin}</b></span>
-    <span style="background:none;border:none;padding:0;flex-basis:100%">
-      <span class="dim">Party health</span>
-      <span class="hbar"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
-      <b style="color:${col}">${hp}</b>
-    </span>
+    ${run.party.map(memberBar).join('')}
   </div>`;
 }
 
@@ -589,12 +625,10 @@ function screenOutfit() {
   app.innerHTML = `
     <h2>Independence, MO — The Outfitter</h2>
     <div class="panel">
-      <p>Name your party of four.</p>
+      <p>Name your party of two. Each keeps their own health out there — the trail picks on people individually.</p>
       <div class="row">
         <div><label>Leader</label><input type="text" id="p0" value="You" maxlength="12"></div>
-        <div><label>Member 2</label><input type="text" id="p1" value="Ada" maxlength="12"></div>
-        <div><label>Member 3</label><input type="text" id="p2" value="Edgar" maxlength="12"></div>
-        <div><label>Member 4</label><input type="text" id="p3" value="Codd" maxlength="12"></div>
+        <div><label>Partner</label><input type="text" id="p1" value="Ada" maxlength="12"></div>
       </div>
     </div>
     <div class="panel">
@@ -618,7 +652,7 @@ function screenOutfit() {
 }
 
 function startRun() {
-  const names = [0,1,2,3].map(i => document.getElementById('p' + i).value.trim() || 'Pioneer');
+  const names = [0,1].map(i => document.getElementById('p' + i).value.trim() || 'Pioneer');
   const alloc = { food: +document.getElementById('aFood').value || 0 };
   try { run = E.newRun(C, names, alloc); }
   catch (e) { toast(e.message); return; }
@@ -660,6 +694,7 @@ function doTravel() {
 }
 
 function afterTravel() {
+  processGraves();
   if (run.dead) return screenTombstone();
   if (C.RIVERS[run.stop]) return screenRiver();
   screenArrival();
@@ -684,6 +719,7 @@ function doCross(choice) {
   const river = C.RIVERS[run.stop];
   const r = E.crossRiver(run, run.stop, choice, river);
   if (!r.ok) { toast(r.text); return; }
+  processGraves();
   document.getElementById('riverOut').innerHTML = `
     <p class="amber">${esc(r.text)}</p>
     <button onclick="run.dead ? screenTombstone() : screenArrival()">Continue</button>`;
@@ -697,6 +733,7 @@ function screenArrival() {
   app.innerHTML = `
     ${trailMap()}${statbar()}
     <h2>You have arrived at ${esc(stop.name)}</h2>
+    ${pastGravesHtml(run.stop)}
     <div class="panel crt center">
       <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
       <p class="dim">${esc(v.flavor)}</p>
@@ -767,13 +804,19 @@ ${'ⁿ'.repeat(LANE + 8)}`;
 }
 
 // ---------- roguelite town draft ----------
-// Draw 3 same-tier cards, seeded per version+town so a given run's town always
-// posts the same three jobs. The player takes one; the others ride off.
+// Seeded per version+town so a given run's town always posts the same jobs.
+// Town 1: three fresh tier-1 cards. Every town after: TWO fresh cards at the
+// town's tier plus ONE review card — auto-picked (seeded) from the three the
+// previous town posted — so old concepts keep coming back around.
 function drawCards(town) {
   const tier = C.TOWN_TIER[town];
   const pool = C.CARD_POOL.filter(c => c.tier === tier);
   const rand = TrailRNG.fromVersion(`${run.version}:draft:${town}`);
-  return pool.map(c => ({ c, k: rand() })).sort((a, b) => a.k - b.k).slice(0, 3).map(x => x.c);
+  const fresh = pool.map(c => ({ c, k: rand() })).sort((a, b) => a.k - b.k).map(x => x.c);
+  if (town <= 1) return fresh.slice(0, 3);
+  const prev = drawCards(town - 1); // deterministic, so recursion is safe
+  const review = prev[Math.floor(TrailRNG.fromVersion(`${run.version}:review:${town}`)() * prev.length)];
+  return [...fresh.slice(0, 2), { ...review, review: true }];
 }
 
 function dpips(n) { return `<span class="dpips">${[1,2,3,4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`; }
@@ -786,10 +829,10 @@ function screenDraft() {
     ${trailMap()}${statbar()}
     <h2>${esc(stop.name)} — the job board</h2>
     ${stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
-    <div class="objective"><span class="tag">Choose one</span>Three jobs are posted. Take one — the other two ride off with somebody else.</div>
+    <div class="objective"><span class="tag">Choose one</span>Three jobs are posted. Take one — the other two ride off with somebody else.${run.stop > 1 ? ' The 🔁 Review job is easier pay from the last town — good for checking yourself on ground you\'ve covered.' : ''}</div>
     <div class="cards">
       ${cards.map((c, i) => `<div class="card">
-        <div><span class="badge">${esc(c.concept)}</span> ${dpips(c.tier)}</div>
+        <div><span class="badge">${esc(c.concept)}</span>${c.review ? ' <span class="badge" style="background:var(--brown-dark);color:#fff8ec">🔁 Review</span>' : ''} ${dpips(c.tier)}</div>
         <h3>${esc(c.title)}</h3>
         <div class="story">${esc(c.story)}</div>
         <div class="reward">Pays 🌾 ${c.reward.food} lbs · 💰 $${c.reward.coin}</div>
@@ -813,7 +856,7 @@ function screenCard() {
     ${trailMap()}${statbar()}
     <h2>${esc(stop.name)} — ${esc(q.title)}</h2>
     <div class="panel">
-      <div><span class="badge">${esc(q.concept)}</span> ${dpips(q.tier)}
+      <div><span class="badge">${esc(q.concept)}</span>${q.review ? ' <span class="badge" style="background:var(--brown-dark);color:#fff8ec">🔁 Review</span>' : ''} ${dpips(q.tier)}
         <span class="dim" style="float:right">Pays 🌾 ${q.reward.food} · 💰 $${q.reward.coin}</span></div>
       <p class="story" style="margin:8px 0">${esc(q.story)}</p>
       <div class="objective"><span class="tag">🎯 Your task</span>${esc(q.prompt)}</div>
@@ -1211,21 +1254,24 @@ function renderRows(res) {
 }
 
 function screenTombstone() {
+  processGraves();
   const rand = TrailRNG.fromVersion(C.GAME_VERSION + ':' + run.day);
   const epitaph = C.EPITAPHS[Math.floor(rand() * C.EPITAPHS.length)];
   saveHistory(false);
-  app.innerHTML = `
-    <h2 class="center red">The whole party has died.</h2>
-    <div class="panel crt tomb center">      _______
+  const stone = m => `      _______
      /       \\
     |  R.I.P  |
     |         |
-    | ${esc(run.party[0].name).padEnd(8)}|
-    |  &amp; co.  |
+    | ${esc(m.name).padEnd(8)}|
     |_________|
-   Here lies a party that
-   ${esc(epitaph)}
-   Day ${run.day} · v${C.GAME_VERSION}</div>
+   died of ${esc(m.cause || 'the trail')}
+   day ${m.diedDay || run.day}`;
+  app.innerHTML = `
+    <h2 class="center red">The whole party has died.</h2>
+    <div class="panel crt tomb center">${run.party.map(stone).join('\n')}
+   A party that ${esc(epitaph)}
+   v${C.GAME_VERSION}</div>
+    <p class="dim center">Their gravestones stay by the trail — you'll pass them on your next run.</p>
     <div class="center">
       <button onclick="screenOutfit()">Start a new run</button>
       <button onclick="screenReport(false)">Journey Report</button>

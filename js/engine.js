@@ -1,6 +1,7 @@
-// Engine: trail state machine with THREE resources (food, coin, health — the
-// party is one shared health bar now), seeded events, and roguelite card
-// rewards. Pure logic, no DOM; index.html renders it, tests drive it headless.
+// Engine: trail state machine with THREE resources (food, coin, health).
+// Health belongs to TWO party members individually — misfortune singles one
+// out, so members die (and get gravestones) one at a time. Seeded events,
+// roguelite card rewards. Pure logic, no DOM; index.html renders it.
 (function (root) {
   'use strict';
 
@@ -35,36 +36,77 @@
       rations: 'meager',
       coin: START.coin - foodDollars,
       food: Math.floor(foodDollars / FOOD_PRICE),
-      health: START.health,        // single shared party health bar (0-100)
-      party: partyNames.slice(0, 4).map(n => ({ name: n })),
+      health: START.health,        // derived: average of the two members below
+      // Party of TWO, each with their own health — individual sickness,
+      // individual deaths, individual gravestones, like the original.
+      party: partyNames.slice(0, 2).map(n => ({ name: n, health: START.health, dead: false })),
+      graves: [],                  // {name, cause, day, stop} — filled as members fall
       schedule: buildEventSchedule(content),
       log: [],
       followUp: [],                // concepts the trail had to hand the player
       metrics: { perStop: [], hints: 0, deaths: 0, score: 0 },
       dead: false,
+      _hitN: 0,                    // salts the seeded who-gets-hurt pick
     };
   }
 
-  // Seeded by version+day so the same run always writes the same fate.
-  function deathCause(run) {
-    const causes = run.causes || ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion'];
-    const rand = RNG.fromVersion(`${run.version}:death:${run.day}`);
+  // Seeded per version+day+name so the same run writes the same fates —
+  // and yes, dysentery leads the list. Tradition.
+  function deathCause(run, name) {
+    const causes = run.causes || ['dysentery', 'typhoid fever', 'cholera', 'a snakebite',
+      'exhaustion', 'a wagon wheel mishap', 'bad jerky', 'an unindexed full scan'];
+    const rand = RNG.fromVersion(`${run.version}:death:${run.day}:${name || ''}`);
     return causes[Math.floor(rand() * causes.length)];
   }
 
+  function living(run) { return run.party.filter(m => !m.dead); }
+
+  // Recompute the derived party bar and bury anyone who hit zero.
   function checkDeaths(run) {
-    if (!run.dead && run.health <= 0) {
-      run.health = 0;
-      run.dead = true;
-      run.metrics.deaths = run.party.length;
-      run.log.push({ day: run.day, text: `💀 The party has succumbed to ${deathCause(run)}.` });
+    for (const m of run.party) {
+      if (!m.dead && m.health <= 0) {
+        m.health = 0; m.dead = true;
+        m.cause = deathCause(run, m.name); m.diedDay = run.day; m.diedStop = Math.min(run.stop + 1, 9);
+        run.graves.push({ name: m.name, cause: m.cause, day: m.diedDay, stop: m.diedStop });
+        run.metrics.deaths += 1;
+        run.log.push({ day: run.day, text: `💀 ${m.name} has died of ${m.cause}.` });
+      }
     }
+    run.health = Math.round(run.party.reduce((t, m) => t + m.health, 0) / run.party.length);
+    if (!run.dead && living(run).length === 0) {
+      run.dead = true;
+      run.log.push({ day: run.day, text: '💀 The whole party lies on the trail.' });
+    }
+  }
+
+  // Systemic drains (starvation, pace, rations) wear on everyone equally.
+  function damageAll(run, d) {
+    for (const m of living(run)) m.health = Math.max(0, m.health - d);
+    checkDeaths(run);
+  }
+  function healAll(run, d) {
+    for (const m of living(run)) m.health = Math.min(100, m.health + d);
+    checkDeaths(run);
+  }
+  // Misfortune strikes ONE member (seeded), at double strength so the party
+  // average moves the same as the old shared bar — but somebody in particular
+  // is having a very bad day. This is where individual deaths come from.
+  function damageOne(run, d) {
+    const alive = living(run);
+    if (!alive.length) return;
+    run._hitN = (run._hitN || 0) + 1;
+    const rand = RNG.fromVersion(`${run.version}:hit:${run.day}:${run._hitN}`);
+    const m = alive[Math.floor(rand() * alive.length)];
+    const dmg = alive.length > 1 ? d * 2 : d;
+    m.health = Math.max(0, m.health - dmg);
+    checkDeaths(run);
   }
 
   function applyEffects(run, e) {
     if (e.coin) run.coin = Math.max(0, run.coin + e.coin);
     if (e.food) run.food = Math.max(0, run.food + e.food);
-    if (e.health) run.health = Math.min(100, run.health + e.health); // may go <=0 → death
+    if (e.health < 0) damageOne(run, -e.health);
+    else if (e.health > 0) healAll(run, e.health);
     if (e.days) run.day += e.days;
     checkDeaths(run);
   }
@@ -111,11 +153,11 @@
       run.food -= eaten;
     } else {
       run.food = 0;
-      run.health -= 12; // starvation drains the party
+      damageAll(run, 12); // starvation drains everyone
       run.log.push({ day: run.day, text: 'The larder ran dry on this leg. The party weakens.' });
     }
-    if (run.pace === 'grueling') run.health -= 6;
-    if (run.rations === 'bare-bones') run.health -= 4;
+    if (run.pace === 'grueling') damageAll(run, 6);
+    if (run.rations === 'bare-bones') damageAll(run, 4);
 
     const event = run.schedule[run.stop];
     if (event) {
@@ -158,7 +200,7 @@
 
   const Engine = {
     PACE, RATIONS, START, FOOD_PRICE, LEG_DAYS,
-    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate,
+    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate, living,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else root.TrailEngine = Engine;

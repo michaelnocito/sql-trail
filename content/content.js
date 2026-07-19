@@ -5,7 +5,7 @@
 (function (root) {
   'use strict';
 
-  const GAME_VERSION = '0.3.0';
+  const GAME_VERSION = '0.4.0'; // 0.4: 2-member party w/ individual deaths + review-card drafts (new era, new seeds)
 
   // Shared world schema seeded fresh for every challenge.
   const SEED_SQL = `

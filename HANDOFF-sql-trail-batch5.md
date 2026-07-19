@@ -1,6 +1,10 @@
-# HANDOFF — SQL Trail: Batch 5 shipped; awaiting Mike's tests + one Supabase step
+# HANDOFF — SQL Trail: Batches 5+6 shipped; awaiting Mike's tests + one Supabase step
 
-**You are the receiving chat.** Batch 5 (persistence + social) is BUILT and LIVE (build 23). No build work remains — this handoff is for triaging Mike's feedback and finishing activation.
+**You are the receiving chat.** Batch 5 (persistence + social, build 23) and Batch 6 (two-member party, gravestones, review cards — build 24, GAME_VERSION 0.4.0) are BUILT and LIVE. No build work remains — this handoff is for triaging Mike's feedback and finishing activation.
+
+## Batch 6 in one breath (see ROADMAP.md for detail)
+
+Party of TWO, each with individual health; misfortune hits one seeded member at double strength (individual deaths), systemic drains hit both, heals lift both; `run.health` = derived average (tuning unchanged). Member death → banner + persistent gravestone (localStorage, last 60) with seeded funny cause (dysentery first, of course); later runs passing that town show the CRT stone. Tombstone screen = one stone per member. Town drafts: town 1 = 3 fresh; towns 2-9 = 2 fresh + 1 seeded 🔁 Review auto-pick from the previous town's three (recursive, deterministic). 125 tests.
 
 ## Project
 
@@ -41,6 +45,16 @@ The `trail_runs` / `trail_players` tables DO NOT EXIST yet. Mike (or Claude driv
 - 023e Title → 🏆 Leaderboard: your best run listed, "← you" highlighted.
 - 023f Save an email on Journey records → "Filed with the trail boss."
 - 023g Older builds/batches still pending Mike's test per ROADMAP.md (builds 14-22 items).
+
+## Mike's test steps (Batch 6 = task 024)
+
+- 024a Outfitter shows two members (Leader + Partner); statbar shows two named health bars.
+- 024b Run grueling pace + bare-bones rations until someone gets hurt: only ONE member's bar drops on an event/miss penalty; both drop on starvation legs.
+- 024c Let one member die: banner "💀 <name> has died of <cause>", run continues with the survivor, statbar shows ✝.
+- 024d Let both die: tombstone shows TWO stones with individual causes/days.
+- 024e Start a new run and reach the town where someone died in 024c/d: their CRT gravestone appears on arrival ("a previous run").
+- 024f Any town 2+: job board shows two new cards + one 🔁 Review card carrying a concept from the previous town.
+- 024g Leaderboard now reads v0.4.0 — old 0.3.0 scores no longer race (by design; new mechanics = new era).
 
 ## Next
 

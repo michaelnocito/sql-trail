@@ -115,11 +115,29 @@ function check(name, cond, detail) {
   const missed = Engine.recordAnswer(run, 1, card, 'fail', 3, 5000);
   check('an unsolved card pays nothing', missed.food === 0 && missed.coin === 0);
 
+  console.log('two-member party (individual health)');
+  const duo = Engine.newRun(Content, ['A','B','C','D'], { food: 30 });
+  check('party capped at two members', duo.party.length === 2 && duo.party[0].name === 'A' && duo.party[1].name === 'B');
+  check('members start at 100 each', duo.party.every(m => m.health === 100 && !m.dead));
+  Engine.applyEffects(duo, { health: -10 });
+  const hurt = duo.party.filter(m => m.health < 100);
+  check('misfortune hits ONE member at double strength', hurt.length === 1 && hurt[0].health === 80);
+  check('derived party health is the average', duo.health === 90);
+
   const dyingRun = Engine.newRun(Content, ['A','B','C','D'], { food: 30 });
-  dyingRun.health = 5;
+  dyingRun.party[0].health = 5; dyingRun.party[1].health = 5;
   Engine.applyEffects(dyingRun, { health: -10 });
-  check('party dies when health hits 0', dyingRun.dead === true && dyingRun.metrics.deaths === 4);
-  check('death logs a cause', /succumbed to .+\./.test(dyingRun.log[dyingRun.log.length - 1].text));
+  check('one member dies, run continues', dyingRun.metrics.deaths === 1 && dyingRun.dead === false && Engine.living(dyingRun).length === 1);
+  const grave = dyingRun.graves[0];
+  check('death carves a grave with name+cause+stop', !!grave && !!grave.name && !!grave.cause && grave.stop >= 1);
+  check('death log names the member and cause', /💀 [AB] has died of .+\./.test(dyingRun.log[dyingRun.log.length - 1].text));
+  Engine.applyEffects(dyingRun, { health: -10 }); // survivor takes it solo (no doubling)
+  check('party dies when the last member falls', dyingRun.dead === true && dyingRun.metrics.deaths === 2 && dyingRun.graves.length === 2);
+  check('death causes are seeded/deterministic', Engine.deathCause(dyingRun, 'A') === Engine.deathCause(dyingRun, 'A'));
+  const healRun = Engine.newRun(Content, ['A','B','C','D'], { food: 30 });
+  healRun.party[0].health = 40; healRun.party[1].health = 40;
+  Engine.applyEffects(healRun, { health: 25 });
+  check('healing lifts every living member', healRun.party.every(m => m.health === 65));
   const br = Engine.burnRate(run);
   check('burn rate reports lbs/leg and legs left', br.lbsPerLeg > 0 && typeof br.legsOfFood === 'number');
 
