@@ -1,40 +1,51 @@
-# HANDOFF — SQL Trail: build Batch 5 (persistence + social)
+# HANDOFF — SQL Trail: Batch 5 shipped; awaiting Mike's tests + one Supabase step
 
-**You are the receiving chat.** This handoff is your work order: pick up SQL Trail and build Batch 5. Start executing immediately; do not re-plan what is already decided.
+**You are the receiving chat.** Batch 5 (persistence + social) is BUILT and LIVE (build 23). No build work remains — this handoff is for triaging Mike's feedback and finishing activation.
 
 ## Project
 
-SQL Trail: an Oregon Trail homage that trains data analysts for interview-grade SQL — now a full-trail roguelite. Pure query game (writes shelved to the "SQL General Store" spin-off — see ROADMAP.md).
+SQL Trail: Oregon Trail homage that trains interview-grade SQL. Pure query game.
 
-- **Live:** https://michaelnocito.github.io/sql-trail/ (public repo `michaelnocito/sql-trail`, GitHub Pages from main)
-- **Local:** C:\Users\Mike\Projects\sql-trail
-- **GDD:** C:\Users\Mike\Downloads\SQL_TRAIL_GDD.md (NOT committed — keep it out of the public repo)
-- **Stack:** static site, no build step. sql.js 1.10.2 + CodeMirror 5.65.16 from cdnjs. Tests: `npm test` (node, sql.js dev dep), 109 green.
+- **Live:** https://michaelnocito.github.io/sql-trail/ (public repo `michaelnocito/sql-trail`, Pages from main)
+- **Local:** C:\Users\Mike\Projects\sql-trail (preview server `sql-trail`, port 4233, in root launch.json)
+- **GDD:** C:\Users\Mike\Downloads\SQL_TRAIL_GDD.md (never commit — public repo)
+- **Stack:** static, no build step. sql.js + CodeMirror from cdnjs. `npm test` = 117 green.
 
-## State at handoff (build 22, GAME_VERSION 0.3.0)
+## State (build 23, GAME_VERSION 0.3.0)
 
-The full game loop is DONE and live-verified: 9 towns, roguelite draw-3-pick-1 card draft per town (CARD_POOL: 36 cards, 4 per tier 1-9, each with funny story + reward), 3 resources (Food/Coin/Health — one shared party bar), escalating help (1st miss free + funny line, 2nd −10 health + half the answer filled, 3rd −18 health/−10 food + answer handed over + Trail Journal entry with Analyst Prep Kit link), win celebrations (confetti/banner), rivers 2/5/8, fort stores 2/4/7 (food + doctor), seeded traders 3/6, timed forage minigame (any town, once), burn-rate readout, town gossip, victory report at Oregon with canvas share-card PNG download. Hybrid retro-modern skin: paper + dusty brown, .crt green callouts, aged wanted-poster SVG backdrop (all original art). Tap-token Build tab for mobile (forage is type-only for now).
+Full 9-town roguelite loop (see ROADMAP.md for every shipped batch) **plus Batch 5**:
+- `js/cloud.js`: cloud ledger via plain REST to the shared Supabase project (`liiivtbyyawueboeavmw`, publishable key in-file, RLS-safe). Runs post to `trail_runs` on death/victory with a localStorage offline queue (last 20, auto-drains).
+- Identity: recovery code `WORD-WORD-YEAR` (auto-generated, localStorage `sql-trail-player-v1`); restore by typing a code on Journey records. Optional email → `trail_players` (insert-only under RLS; emails unreadable via API — dashboard lookup only).
+- Journey records: score/days/help sparklines (last 12 local runs), cloud run list, code + restore + email UI.
+- Global leaderboard (title / report / records): top 10, best per player, scoped to GAME_VERSION.
+- CRT polish: vignette + subtle flicker on .crt panels, phosphor tables.
 
-## Standing rules (violating these caused rework — do not repeat)
+## ⚠️ Blocking activation step (needs Mike's dashboard)
 
-1. **Deploy protocol:** every push bumps BUILD in index.html AND version.json together (BUILD version-stamps local script URLs), and you verify the LIVE url (curl a marker + pages build status) before saying "live".
+The `trail_runs` / `trail_players` tables DO NOT EXIST yet. Mike (or Claude driving his browser via claude-in-chrome, as done for the playtest tracker) pastes the SQL from **SUPABASE_SETUP.md** into the Supabase SQL Editor once. Until then the game degrades gracefully (queues + "out of reach" messages). After running it, verify: `curl "https://liiivtbyyawueboeavmw.supabase.co/rest/v1/trail_runs?select=id&limit=1" -H "apikey: <key>" -H "Authorization: Bearer <key>"` returns `[]` not an error.
+
+## Standing rules (violating these caused rework)
+
+1. **Deploy protocol:** every push bumps BUILD in index.html AND version.json together; verify the LIVE url (curl a marker + Pages build status) before saying "live".
 2. Commit as Michael Nocito <hello.michaelnocito@gmail.com>, no AI trailers. Push without asking.
-3. No DDL/DML anywhere in the curriculum. Difficulty ramps by town tier.
-4. Players see only applicable info; test steps labeled <task><letter>; replies short; live URL + local path always included.
-5. All art stays ORIGINAL homage (no MECC/Oregon Trail assets).
-6. Workflow: build the batch → Mike tests → feedback into ROADMAP.md at the applicable batch → update this handoff → new chat takes the next batch.
+3. No DDL/DML in the curriculum (the Supabase setup SQL is infra, not curriculum).
+4. Test steps labeled <task><letter>; replies short; live URL + local path always included.
+5. All art ORIGINAL homage. 6. Feedback lands in ROADMAP.md at the applicable batch first.
 
-## Your task: Batch 5 (from ROADMAP.md — persistence + social)
+## Mike's test steps (Batch 5 = task 023)
 
-⚠️ Needs the Supabase project credentials (anon key + URL) from the Analyst Prep Kit — get them from `assets/supabase_auth_sync.js` in the analyst-prep-kit repo (see memory: project_playtest_tracker / project_sql_prep_kit_state). If keys or RLS setup need Mike's dashboard access, stop and ask before improvising.
+- 023a Run the setup SQL (SUPABASE_SETUP.md) in the Supabase SQL Editor, or ask Claude to drive it.
+- 023b Play any run to death or Oregon → Journey Report shows "in the trail ledger under your recovery code".
+- 023c Title → Journey records: sparklines appear after 2+ runs; cloud list shows the run from 023b (needs 023a done).
+- 023d Copy the code, open the game in a private window, Journey records → enter the code → cloud runs appear there.
+- 023e Title → 🏆 Leaderboard: your best run listed, "← you" highlighted.
+- 023f Save an email on Journey records → "Filed with the trail boss."
+- 023g Older builds/batches still pending Mike's test per ROADMAP.md (builds 14-22 items).
 
-1. Supabase run storage: save each finished/dead run (score, days, health, food, coin, help count, per-town rows, version, build).
-2. Dual auth reusing the APK pattern: recovery code (OXEN-RIVER-1847 style) + optional email.
-3. Journey Report trend charts across runs (small canvas/SVG sparklines — no chart libs).
-4. Global leaderboard (top scores per GAME_VERSION; version-scope so metrics compare like with like).
-5. Final CRT polish pass (cheap wins only).
-6. Tests green, live-verify, bump build, update ROADMAP.md, rewrite this handoff for whatever remains.
+## Next
+
+No planned batches remain. Next chat: triage Mike's feedback into ROADMAP.md, or start the SQL General Store spin-off (see ROADMAP.md "Shelved").
 
 ## Memory
 
-Session memory: C:\Users\Mike\.claude\projects\C--Users-Mike\memory\project_sql_trail_state.md — keep it current as you ship.
+Session memory: C:\Users\Mike\.claude\projects\C--Users-Mike\memory\project_sql_trail_state.md — keep it current.

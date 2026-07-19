@@ -124,6 +124,27 @@
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.2) 0 1px, transparent 1px 3px);
     border-radius: 6px;
   }
+  /* Batch 5 CRT polish: tube vignette + a barely-there phosphor flicker. */
+  .crt::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 6px;
+    background: radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.38) 100%);
+    animation: crtflicker 3.7s steps(1) infinite;
+  }
+  @keyframes crtflicker {
+    0%, 100% { opacity: 1; } 87% { opacity: 1; }
+    88% { opacity: .82; } 89% { opacity: 1; } 94% { opacity: .9; } 95% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) { .crt::before { animation: none; } }
+  /* trend sparklines on the records screen */
+  .spark { display: block; width: 100%; height: 56px; }
+  .sparkbox { flex: 1 1 180px; background: var(--crt-bg); border: 1px solid #2c2c24;
+    border-radius: 8px; padding: 8px 10px; }
+  .sparkbox .blabel { color: var(--crt-dim); font-family: "Courier New", monospace; font-size: .78em; }
+  .codechip {
+    display: inline-block; font-family: "Courier New", monospace; font-weight: 700;
+    background: var(--crt-bg); color: var(--crt-amber); border-radius: 6px;
+    padding: 4px 12px; letter-spacing: 1px;
+  }
   .crt .dim { color: var(--crt-dim); }
   .crt .amber, .crt b { color: var(--crt-amber); font-weight: 600; }
   .trailmap { white-space: pre; overflow-x: auto; font-size: .85em; line-height: 1.2; }
@@ -143,6 +164,11 @@
   .nextstep { color: var(--muted); font-size: .92em; margin: 4px 0 10px; }
   /* stat chips inside a CRT callout go phosphor, not gold */
   .crt .statbar > span { background: transparent; border-color: #234223; color: var(--crt-fg); }
+  /* tables shown inside a CRT callout (leaderboard) go phosphor too */
+  .crt th, .crt td { border-color: #234223; }
+  .crt th { background: transparent; color: var(--crt-amber); }
+  .crt td { color: var(--crt-fg); }
+  .crt tr:nth-child(even) td { background: rgba(51,255,51,.06); }
   /* dark "pro tool" panes share the modern radius */
   .outpane, .buildpad, .schemastrip, .CodeMirror.cm-s-trail { border-radius: 6px; }
 
@@ -306,8 +332,8 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 22;
-['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'content/content.js'].forEach(s =>
+const BUILD = 23;
+['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
 <script>
@@ -555,6 +581,7 @@ function screenTitle() {
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Head west ▸</button>
       <button onclick="screenHistory()">Journey records</button>
+      <button onclick="screenBoard()">🏆 Leaderboard</button>
     </div>`;
 }
 
@@ -1247,9 +1274,14 @@ function screenReport(finished) {
         <a href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Study it in the Analyst Prep Kit ▸</a>
       </div>`).join('')}
     </div>` : ''}
+    <div class="panel dim">🧾 This run is in the trail ledger under your recovery code
+      <span class="codechip">${esc(TrailCloud.getPlayer().code)}</span> —
+      trends, restore, and the leaderboard live in <b>Journey records</b>.</div>
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
       <button onclick="downloadShareCard(${finished})">📷 Share card (PNG)</button>
+      <button onclick="screenBoard()">🏆 Leaderboard</button>
+      <button onclick="screenHistory()">Journey records</button>
       <button onclick="screenTitle()">Title</button>
     </div>`;
 }
@@ -1283,28 +1315,156 @@ function downloadShareCard(finished) {
 }
 
 function saveHistory(finished) {
+  if (run._histSaved) return;   // tombstone → report must not double-book a run
+  run._histSaved = true;
   const hist = loadHistory();
   hist.push({ v: run.version, score: run.metrics.score, days: run.day,
     mins: Math.round((Date.now() - run.startedAt) / 6000) / 10,
     hints: run.metrics.hints, deaths: run.metrics.deaths, finished, at: Date.now() });
   localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(-50)));
+  TrailCloud.saveRun(run, finished, BUILD); // fire-and-forget; queues offline
 }
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; }
 }
 
+// Tiny phosphor sparkline — no chart libs on the trail.
+function drawSpark(canvasId, values, color) {
+  const cv = document.getElementById(canvasId);
+  if (!cv || !values.length) return;
+  const W = cv.width = cv.clientWidth * 2, H = cv.height = cv.clientHeight * 2;
+  const x = cv.getContext('2d');
+  const lo = Math.min(...values), hi = Math.max(...values), span = (hi - lo) || 1;
+  const px = i => values.length === 1 ? W / 2 : 6 + (W - 12) * i / (values.length - 1);
+  const py = v => H - 8 - (H - 16) * (v - lo) / span;
+  x.strokeStyle = color; x.lineWidth = 3; x.lineJoin = 'round';
+  x.shadowColor = color; x.shadowBlur = 8;
+  x.beginPath();
+  values.forEach((v, i) => i ? x.lineTo(px(i), py(v)) : x.moveTo(px(i), py(v)));
+  x.stroke();
+  x.fillStyle = color;
+  values.forEach((v, i) => { x.beginPath(); x.arc(px(i), py(v), 4, 0, 7); x.fill(); });
+}
+
+function trendPanel(runs) {
+  if (runs.length < 2) return `<p class="dim">Finish two runs and the trend lines light up here.</p>`;
+  const last = runs.slice(-12);
+  return `<div class="row">
+      <div class="sparkbox"><span class="blabel">SCORE — higher is better</span><canvas class="spark" id="spkScore"></canvas></div>
+      <div class="sparkbox"><span class="blabel">DAYS — lower is better</span><canvas class="spark" id="spkDays"></canvas></div>
+      <div class="sparkbox"><span class="blabel">HELP USED — lower is better</span><canvas class="spark" id="spkHints"></canvas></div>
+    </div>
+    <p class="dim" style="margin:6px 0 0">Last ${last.length} runs, oldest → newest.</p>`;
+}
+function drawTrends(runs) {
+  const last = runs.slice(-12);
+  if (last.length < 2) return;
+  drawSpark('spkScore', last.map(h => h.score), '#33ff33');
+  drawSpark('spkDays', last.map(h => h.days), '#ffb000');
+  drawSpark('spkHints', last.map(h => h.hints), '#e06c4f');
+}
+
 function screenHistory() {
-  const hist = loadHistory().slice().reverse();
+  const hist = loadHistory();
+  const p = TrailCloud.getPlayer();
   app.innerHTML = `
     <h2>Journey records</h2>
+    <div class="panel crt">${trendPanel(hist)}</div>
     <div class="panel">${hist.length ? `<table>
       <tr><th>When</th><th>Score</th><th>Days</th><th>Min</th><th>Hints</th><th>Fate</th></tr>
-      ${hist.map(h => `<tr><td>${new Date(h.at).toLocaleDateString()}</td><td>${h.score}</td>
+      ${hist.slice().reverse().map(h => `<tr><td>${new Date(h.at).toLocaleDateString()}</td><td>${h.score}</td>
         <td>${h.days}</td><td>${h.mins}</td><td>${h.hints}</td>
         <td>${h.finished ? 'arrived' : '<span class="red">✝</span>'}</td></tr>`).join('')}
       </table>` : '<p class="dim">No runs yet. The trail keeps the books; you just have to walk it.</p>'}
     </div>
-    <div class="center"><button onclick="screenTitle()">Back</button></div>`;
+    <div class="panel">
+      <h2 style="margin-top:0">🧾 Trail ledger</h2>
+      <p>Runs also post to the cloud ledger under your recovery code —
+        <span class="codechip">${esc(p.code)}</span>
+        <button style="min-height:32px;padding:3px 10px" onclick="copyCode()">Copy</button></p>
+      <p class="dim">Write it down like it's 1848. Enter it on another device and that ledger page is yours there too.</p>
+      <div class="row">
+        <div><label>Have a code from another wagon?</label>
+          <input type="text" id="restoreCode" placeholder="OXEN-RIVER-1847" maxlength="24"></div>
+        <div><label>&nbsp;</label><button onclick="restoreCode()">Use this code</button></div>
+      </div>
+      <div id="cloudRuns"></div>
+      <div class="row" style="margin-top:8px">
+        <div><label>Email (optional — only for getting a lost code back)</label>
+          <input type="text" id="ledgerEmail" value="${esc(p.email || '')}" placeholder="you@example.com"></div>
+        <div><label>&nbsp;</label><button onclick="saveLedgerEmail()">Save email</button></div>
+      </div>
+      <p id="ledgerMsg" class="dim"></p>
+    </div>
+    <div class="center">
+      <button class="primary" onclick="screenBoard()">🏆 Global leaderboard</button>
+      <button onclick="screenTitle()">Back</button>
+    </div>`;
+  drawTrends(hist);
+  loadCloudRuns(p.code);
+}
+
+function copyCode() {
+  const code = TrailCloud.getPlayer().code;
+  (navigator.clipboard ? navigator.clipboard.writeText(code) : Promise.reject())
+    .then(() => toast('Code copied: ' + code), () => toast('Your code: ' + code));
+}
+
+async function loadCloudRuns(code) {
+  const el = document.getElementById('cloudRuns');
+  if (!el) return;
+  try {
+    const runs = await TrailCloud.fetchMyRuns(code);
+    if (!runs || !runs.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<p class="dim" style="margin-bottom:2px">☁️ ${runs.length} run${runs.length === 1 ? '' : 's'} on this ledger page:</p>
+      <table><tr><th>When</th><th>Version</th><th>Score</th><th>Days</th><th>Hints</th><th>Fate</th></tr>
+      ${runs.slice(-10).reverse().map(r => `<tr><td>${new Date(r.created_at).toLocaleDateString()}</td>
+        <td>${esc(r.game_version)}</td><td>${r.score}</td><td>${r.days}</td><td>${r.hints}</td>
+        <td>${r.finished ? 'arrived' : '<span class="red">✝</span>'}</td></tr>`).join('')}</table>`;
+  } catch {
+    el.innerHTML = `<p class="dim">☁️ The cloud ledger is out of reach right now — local records above still count.</p>`;
+  }
+}
+
+function restoreCode() {
+  const v = document.getElementById('restoreCode').value;
+  if (!TrailCloud.adoptCode(v)) return toast('Codes look like OXEN-RIVER-1847.');
+  toast('Ledger restored to ' + TrailCloud.normCode(v));
+  screenHistory();
+}
+
+async function saveLedgerEmail() {
+  const ok = await TrailCloud.registerEmail(document.getElementById('ledgerEmail').value);
+  const msg = document.getElementById('ledgerMsg');
+  if (msg) msg.textContent = ok
+    ? 'Filed with the trail boss. If the code ever goes missing, it can be looked up.'
+    : 'Saved on this device. (Cloud filing didn’t go through — it’ll matter only if you lose the code.)';
+}
+
+// ---------- global leaderboard (top scores, current version only) ----------
+async function screenBoard() {
+  const myCode = TrailCloud.getPlayer().code;
+  app.innerHTML = `
+    <h2>🏆 Trail leaderboard</h2>
+    <p class="dim">Best run per pioneer, v${C.GAME_VERSION} only — every version changes the trail, so scores only race their own era.</p>
+    <div class="panel crt" id="boardPane"><p class="dim">Riding out to fetch the standings…</p></div>
+    <div class="center">
+      <button onclick="screenHistory()">Journey records</button>
+      <button onclick="screenTitle()">Back</button>
+    </div>`;
+  const pane = document.getElementById('boardPane');
+  try {
+    const rows = await TrailCloud.fetchLeaderboard(C.GAME_VERSION);
+    pane.innerHTML = rows.length ? `<table style="font-family:inherit">
+      <tr><th>#</th><th>Pioneer</th><th>Score</th><th>Days</th><th>Help</th><th>Fate</th></tr>
+      ${rows.map((r, i) => `<tr${r.player_code === myCode ? ' style="outline:1px solid var(--crt-amber)"' : ''}>
+        <td>${i + 1}</td><td>${esc(r.player_name)}${r.player_code === myCode ? ' <b>← you</b>' : ''}</td>
+        <td>${r.score}</td><td>${r.days}</td><td>${r.hints}</td>
+        <td>${r.finished ? 'arrived' : '✝'}</td></tr>`).join('')}</table>`
+      : `<p class="dim">No scores posted for v${C.GAME_VERSION} yet. First wagon in gets the top line.</p>`;
+  } catch {
+    pane.innerHTML = `<p class="dim">The leaderboard is out of reach right now. Try again in a spell.</p>`;
+  }
 }
 
 // ---------- boot ----------

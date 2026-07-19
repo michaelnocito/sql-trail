@@ -64,12 +64,15 @@ Mike: 5 questions per stop was too many; hint 3 should just paste.
 - 109 tests green; browser-verified scripted 9-town run (rivers 2/5/8 ferry, store buy, trades, forage wins, victory report, no console errors). GAME_VERSION 0.3.0.
 - Note: forage minigame is TYPE-mode only for now (no tap pad); fine on desktop, revisit for mobile if Mike flags it.
 
-### Batch 5 — Persistence + social (REMAINING — needs Supabase keys, own chat)
-- Supabase run storage (reuse Analyst Prep Kit project + supabase_auth_sync.js)
-- Dual auth: recovery code (OXEN-RIVER-1847 style) + optional email
-- Journey Report trend charts across runs
-- Global leaderboard (Supabase)
-- Final CRT polish pass (fold into this batch)
+### Batch 5 — Persistence + social (SHIPPED build 23, awaiting Mike's test + ⚠️ one dashboard step)
+All client code live 2026-07-19; **the two Supabase tables don't exist yet** — Mike pastes SUPABASE_SETUP.md's SQL into the Supabase SQL Editor once (same project as APK/playtest tracker). Until then everything degrades gracefully: runs queue in localStorage (last 20) and auto-drain the moment the tables exist; the leaderboard/cloud panels show friendly "out of reach" lines.
+- **Cloud run storage** (js/cloud.js, plain REST like the playtest tracker — no supabase-js): every finished/dead run posts to `trail_runs` (score, days, health, food, coin, hints, finished, per-town rows, version, build). Fire-and-forget from saveHistory() with an offline queue.
+- **Identity = frontier recovery code** (OXEN-RIVER-1847 style, auto-generated, localStorage). Enter it on another device to adopt that ledger page. Optional email goes to `trail_players`, an **insert-only** table under RLS (no select policy) so emails can never be read back via the API — Mike looks codes up in the dashboard if someone loses one. (The APK's full email+password auth was skipped: a leaderboard game doesn't need accounts, and this keeps zero secrets client-side.)
+- **Trend sparklines** on Journey records: score / days / help across the last 12 local runs, phosphor-green canvas, no chart libs.
+- **Global leaderboard** (title, report, records): top 10, best run per player, scoped to the current GAME_VERSION so scores only race their own era; your row highlighted.
+- **CRT polish**: tube vignette + subtle flicker on all .crt panels (honors prefers-reduced-motion), phosphor-styled tables inside CRT callouts.
+- Fix riding along: tombstone → Journey Report can no longer double-book a run in history.
+- 117 tests green (8 new for cloud.js pure parts); browser-verified records/report/leaderboard screens incl. offline fallbacks.
 
 ## Shelved: SQL General Store (future spin-off game)
 

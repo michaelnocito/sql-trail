@@ -123,6 +123,23 @@ function check(name, cond, detail) {
   const br = Engine.burnRate(run);
   check('burn rate reports lbs/leg and legs left', br.lbsPerLeg > 0 && typeof br.legsOfFood === 'number');
 
+  console.log('cloud ledger (Batch 5)');
+  const Cloud = require('../js/cloud.js');
+  const RNG = require('../js/rng.js');
+  check('recovery code format', Cloud.validCode(Cloud.newCode()));
+  check('seeded code deterministic', Cloud.newCode(RNG.fromVersion('x')) === Cloud.newCode(RNG.fromVersion('x')));
+  check('validCode rejects junk', !Cloud.validCode('howdy') && !Cloud.validCode('OXEN-RIVER') && !Cloud.validCode(''));
+  check('normCode uppercases and trims', Cloud.normCode('  oxen-river-1847 ') === 'OXEN-RIVER-1847');
+  const cRun = Engine.newRun(Content, ['Mike','A','B','C'], { food: 30 });
+  Engine.recordAnswer(cRun, 1, { concept: 'JOINs', reward: { food: 10, coin: 5 } }, 'full', 1, 4000);
+  const row = Cloud.runRow(cRun, true, 23);
+  check('runRow carries score/version/build', row.score === cRun.metrics.score && row.game_version === cRun.version && row.build === 23 && row.finished === true);
+  check('runRow names the leader', row.player_name === 'Mike');
+  check('runRow flattens per-town rows', row.towns.length === 1 && row.towns[0].concept === 'JOINs' && row.towns[0].correct === true && row.towns[0].time_s === 4);
+  const board = Cloud.bestPerPlayer([
+    { player_code: 'A-A-1', score: 900 }, { player_code: 'B-B-1', score: 800 }, { player_code: 'A-A-1', score: 700 }]);
+  check('leaderboard keeps best run per player', board.length === 2 && board[0].score === 900 && board[1].score === 800);
+
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();
