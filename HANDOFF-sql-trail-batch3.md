@@ -29,6 +29,10 @@ Builder specifics: pad tokens derive from the question's canonical answer + rele
 6. Retro CRT look stays; emoji icons are the graphical upgrade budget.
 7. Workflow: build the batch → Mike tests → his feedback goes into ROADMAP.md at the applicable batch → update this handoff (rename for the next batch) → new chat takes the next batch.
 
+## ⚠️ Model changed at build 21 (roguelite reboot) — read this first
+
+The game is now a roguelite: **3 resources** (Food/Coin/Health, party = one shared health bar), and each town posts **3 job "cards" drawn seeded from a tiered pool; the player takes one**. There are no more fixed per-stop `questions` arrays. Content lives in `content/content.js` as `CARD_POOL` (16 cards, 4 per tier 1-4), each: `{id, tier, concept, title, story (funny tie-in), prompt, answer, orderMatters?, reward:{food,coin}}`. `TOWN_TIER` maps town→tier (1-4 authored). Flow in index.html: `screenDraft` (draw 3) → `startCard`/`screenCard` → `submitAnswer` (escalating help intact, uses `qState.card`) → `afterCard`. Engine rewards via `recordAnswer(run, townId, card, tier, misses, timeMs)`. Tests iterate `CARD_POOL`. So Batch 3 below = **add tiers 5-7 as new cards** (4 per tier) + extend `TOWN_TIER` to {5:5,6:6,7:7} + move the gray-box in `afterCard` (`run.stop >= 4` → `>= 7`). The old "stop 5/6/7 with 3 questions" wording is superseded — same concepts, but authored as cards.
+
 ## Your task: Batch 3 (from ROADMAP.md — Curriculum depth)
 
 1. **First:** check ROADMAP.md Batches 1-2 for any feedback Mike filed from his build-16 test; address blockers before new work.
