@@ -90,6 +90,7 @@ Mike's direction 2026-07-19: make town jobs read like Analyst Prep Kit lessons �
   3. **The payout** — wins, the handed-over 3rd-miss run, and their celebrations land on their OWN card (headline + results grid + Continue), no scrolling under the editor.
 - Job board and forage screens dropped the trail map too (statbar stays everywhere — resources are always visible). Map still lives on travel/arrival/river/extras screens where geography matters.
 - Presentation only — grading, rewards, escalating help, and seeds untouched. GAME_VERSION stays 0.4.0. 125 tests green.
+- **Build 26 follow-up (Mike's screenshot feedback):** desktop was a skinny 760px column with small type in a wide window. ≥900px now gets a 1020px column, 18px base type, bigger headings/buttons/panels, 17px editor, 200px health bars, taller results pane. Mobile untouched (14px rules unchanged). The override block lives LAST in the stylesheet on purpose — earlier it lost specificity ties to base rules.
 
 ## Shelved: SQL General Store (future spin-off game)
 
