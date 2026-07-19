@@ -146,6 +146,58 @@
   /* dark "pro tool" panes share the modern radius */
   .outpane, .buildpad, .schemastrip, .CodeMirror.cm-s-trail { border-radius: 6px; }
 
+  /* --- Try-pips + escalating help/celebration FX --- */
+  .trypips { display: inline-flex; gap: 5px; vertical-align: middle; }
+  .trypips i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--brown); background: transparent; }
+  .trypips i.used { background: var(--accent); border-color: var(--accent); }
+  .helpline { background: var(--gold); border-left: 4px solid var(--accent); border-radius: 6px; padding: 10px 12px; margin: 10px 0; }
+  #fx { position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden; }
+  .fxp { position: absolute; will-change: transform, opacity; animation: fxfall linear forwards; }
+  @keyframes fxfall {
+    0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+    100% { transform: translate(var(--dx), 118vh) rotate(var(--r)); opacity: .15; }
+  }
+  .fxbanner {
+    position: fixed; left: 50%; top: 20%; z-index: 10000; pointer-events: none; text-align: center;
+    background: var(--brown-dark); color: #fff8ec; font-family: Georgia, serif; font-weight: 700;
+    font-size: 1.5em; letter-spacing: 1px; padding: 12px 28px; border-radius: 12px; max-width: 86vw;
+    box-shadow: 0 8px 28px rgba(0,0,0,.4); opacity: 0; animation: fxbanner 1.9s ease forwards;
+  }
+  @keyframes fxbanner {
+    0% { opacity: 0; transform: translateX(-50%) scale(.6); }
+    16% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+    32% { transform: translateX(-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(1); }
+  }
+  .fxflash { position: fixed; inset: 0; z-index: 9998; pointer-events: none; animation: fxflash .5s ease forwards; }
+  @keyframes fxflash { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* --- Roguelite town draft cards + single health bar --- */
+  .cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; }
+  @media (min-width: 680px) { .cards { grid-template-columns: 1fr 1fr 1fr; } }
+  .card {
+    border: 1.5px solid var(--brown); border-radius: 10px; background: var(--card);
+    padding: 12px; display: flex; flex-direction: column;
+    box-shadow: 0 1px 3px rgba(90,70,50,.12); transition: transform .08s, box-shadow .12s;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(90,70,50,.22); }
+  .card h3 { font-family: Georgia, serif; color: var(--brown-dark); margin: .3em 0 .2em; font-size: 1.08em; }
+  .card .story { font-size: .93em; margin: 8px 0; flex: 1; }
+  .card .reward { font-size: .85em; color: var(--muted); margin-bottom: 10px; }
+  .badge {
+    display: inline-block; background: var(--gold); border: 1px solid #e2d5bc; border-radius: 999px;
+    padding: 1px 10px; font-size: .72em; color: var(--brown-dark); font-weight: 600;
+  }
+  .dpips { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 6px; }
+  .dpips i { width: 8px; height: 8px; border-radius: 2px; background: var(--brown); opacity: .28; }
+  .dpips i.on { opacity: 1; }
+  .hbar {
+    display: inline-block; width: 160px; max-width: 42vw; height: 12px; margin: 0 6px;
+    border: 1px solid var(--brown); border-radius: 999px; overflow: hidden; vertical-align: middle; background: #eadfc9;
+  }
+  .hbar-fill { display: block; height: 100%; transition: width .3s; }
+
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
   .CodeMirror.cm-s-trail {
     background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
@@ -242,6 +294,7 @@
 <body>
 <div id="app"><p class="center dim">Loading the trail…</p></div>
 <div id="toast"></div>
+<div id="fx"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -253,7 +306,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 19;
+const BUILD = 21;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -280,7 +333,7 @@ async function checkForUpdate() {
 const app = document.getElementById('app');
 let SQL = null;
 let run = null;
-let qState = null; // per-question: {idx, attempts, hintsShown, startedAt}
+let qState = null; // per-card: {card, misses, startedAt, resolved, townId}
 let editor = null;        // CodeMirror instance for the current question
 let SCHEMA_HINTS = {};    // {table: [columns]} for autocomplete, built at boot
 
@@ -358,21 +411,122 @@ function toast(msg) {
   clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3200);
 }
 
+function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+// Short shout for the win banner; long funny line for the result text.
+const WIN_BANNERS = ['YEEHAW!', 'BULLSEYE!', 'CLEAN SHOT!', 'NAILED IT!', 'TRAIL BLAZED!', 'WELL RUN!', 'HOT DIGGITY!'];
+const WIN_LINES = [
+  'The whole party breaks into a hoedown.',
+  'Codd drops his ledger and does a little jig.',
+  'The campfire roars with approval.',
+  'Ada tips her hat — flawless query.',
+  'Even the oxen are doing the two-step.',
+  'The saloon erupts; sarsaparillas all around.',
+  'The tumbleweeds stop to applaud.',
+  'Edgar bangs the cook pot like a drum.',
+  'That query hit like a perfect banjo lick.',
+  'Clean data, clean shot — the party dances on.',
+  'The trail guide wipes away a proud tear.',
+  'Wagon wheels squeak in rhythm — pure joy.',
+  'You read that ledger like a frontier prophet.',
+  'The prairie itself seems to cheer.',
+];
+// "Party" cuts both ways: your wagon party AND the celebration. Keep 'em funny.
+const MISS_LINES = [
+  'The oxen threw confetti anyway — dust off and run it again.',
+  'Wrong, but with gusto! The party respects the hustle.',
+  'Edgar spilled the punch. Mop up and try once more.',
+  'That query wandered off the trail — round it up.',
+  'So close the campfire almost cheered. Tweak it.',
+  'The saloon piano hit a sour note too. Swing again.',
+  'The tumbleweeds are being awfully polite about that one.',
+  'Ada squinted hard at that. Give it another go.',
+  'Wrong wagon, right spirit.',
+  'The SELECT went east, the answer went west. Reunite them.',
+  'Nice try — the banjo player winced, but kindly.',
+  'Not the ticket, but nobody starved yet.',
+  'The party clapped on the wrong beat. Find the rhythm.',
+  'Close enough to smell the campfire, not to sit at it.',
+  'That one moseyed right past the answer.',
+  'The prairie dogs are chuckling. Show them how it is done.',
+  'A valiant miss — the trail rewards persistence.',
+  'Codd raised an eyebrow. Adjust and re-run.',
+];
+
+// Emoji particle burst. opts.center makes it erupt from mid-screen.
+function fxBurst(emojis, count, opts) {
+  opts = opts || {};
+  let layer = document.getElementById('fx');
+  if (!layer) { layer = document.createElement('div'); layer.id = 'fx'; document.body.appendChild(layer); }
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement('span');
+    s.className = 'fxp';
+    s.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    s.style.left = (opts.center ? 50 : Math.random() * 100) + 'vw';
+    s.style.top = (opts.center ? 42 : -6) + 'vh';
+    s.style.fontSize = ((opts.min || 16) + Math.random() * (opts.spread || 18)) + 'px';
+    s.style.setProperty('--dx', ((Math.random() * 2 - 1) * (opts.center ? 55 : 22)) + 'vw');
+    s.style.setProperty('--r', (Math.random() * 900 - 450) + 'deg');
+    s.style.animationDuration = (0.9 + Math.random() * 1.0) + 's';
+    s.style.animationDelay = (Math.random() * 0.18) + 's';
+    layer.appendChild(s);
+    setTimeout(() => s.remove(), 2400);
+  }
+}
+function fxBanner(text, color) {
+  const b = document.createElement('div');
+  b.className = 'fxbanner';
+  if (color) b.style.background = color;
+  b.textContent = text;
+  document.body.appendChild(b);
+  setTimeout(() => b.remove(), 2000);
+}
+function fxFlash(color) {
+  const f = document.createElement('div');
+  f.className = 'fxflash';
+  f.style.background = 'radial-gradient(ellipse at center, transparent 40%, ' + color + ' 100%)';
+  document.body.appendChild(f);
+  setTimeout(() => f.remove(), 520);
+}
+// Escalating spectacle: tiny nudge → carnival → fireworks; win = full confetti.
+function celebrate(kind) {
+  if (kind === 'win') {
+    fxBurst(['🎉','🎊','⭐','🌟','🤠','🎈','✨','🥳','🌵','🛠️'], 70, { min: 16, spread: 20 });
+    fxBurst(['🎉','🎊','✨','🥳'], 24, { center: true, min: 20, spread: 22 });
+    fxBanner(pick(WIN_BANNERS));
+  } else if (kind === 'miss1') {
+    fxBurst(['🎈','🎵','🪕'], 10, { center: true, min: 16, spread: 12 });
+  } else if (kind === 'miss2') {
+    fxBurst(['🎪','🎭','🃏','🎲','🪗'], 28, { min: 16, spread: 16 });
+    fxFlash('rgba(176,86,44,.30)');
+  } else { // miss3
+    fxBurst(['🎆','🎇','💥','🌋','🔥','🎯'], 58, { min: 18, spread: 22 });
+    fxFlash('rgba(168,50,42,.42)');
+    fxBanner('THE TRAIL PROVIDES', '#5b4632');
+  }
+}
+function pipsHtml() {
+  const n = qState ? qState.misses : 0;
+  return [0, 1, 2].map(i => `<i class="${i < n ? 'used' : ''}"></i>`).join('');
+}
+// Live-refresh the top stat bar in place (after a mid-card reward or penalty).
+function refreshStat() {
+  const el = document.getElementById('statbar');
+  if (el) el.outerHTML = statbar();
+}
+
 function statbar() {
-  const br = E.burnRate(run);
-  const face = run.morale >= 70 ? '😄' : run.morale >= 40 ? '😐' : '😟';
-  return `<div class="panel statbar">
+  const hp = Math.max(0, Math.min(100, run.health));
+  const col = hp > 50 ? '#6f9e4e' : hp > 25 ? '#c98a2c' : '#a8322a';
+  return `<div class="panel statbar" id="statbar">
     <span>📅 Day <b>${run.day}</b></span>
     <span>🌾 <b>${run.food}</b> lbs</span>
-    <span>🔧 <b>${run.parts}</b></span>
-    <span>💊 <b>${run.medicine}</b></span>
-    <span>💰 $<b>${run.money}</b></span>
-    <span>${face} <b>${run.morale}</b></span>
-    <span class="dim">Food lasts ~${br.legsOfFood} legs</span>
-    <span style="flex-basis:100%;height:0"></span>
-    ${run.party.map(m =>
-      m.alive ? `<span class="dim">${esc(m.name)} ❤️<b class="amber">${m.health}</b></span>`
-              : `<span class="red">${esc(m.name)} ✝</span>`).join('')}
+    <span>💰 $<b>${run.coin}</b></span>
+    <span style="background:none;border:none;padding:0;flex-basis:100%">
+      <span class="dim">Party health</span>
+      <span class="hbar"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
+      <b style="color:${col}">${hp}</b>
+    </span>
   </div>`;
 }
 
@@ -383,7 +537,7 @@ function trailMap() {
     const passed = run && run.stop > i + 1;
     line += (passed ? '══' : '──') + (here ? '[◆]' : passed ? '[■]' : '[ ]');
   });
-  return `<div class="panel crt trailmap">START ${line}══► OREGON\n<span class="dim">stop ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
+  return `<div class="panel crt trailmap">START ${line}══► OREGON\n<span class="dim">town ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
 }
 
 // ---------- screens ----------
@@ -395,8 +549,8 @@ function screenTitle() {
       <p style="margin:4px 0">You have died of a Cartesian product.<br><span class="dim">…not yet, anyway.</span></p>
     </div>
     <div class="panel">
-      <p>Travel the trail. At every rest stop, interview-grade SQL decides whether your party eats.</p>
-      <p class="dim">v${C.GAME_VERSION} build ${BUILD} — fixed trail, fixed questions, seeded events. Beat your own last run.</p>
+      <p>Travel the trail. At every town, pick one of three posted jobs — interview-grade SQL decides whether the party eats.</p>
+      <p class="dim">v${C.GAME_VERSION} build ${BUILD} — three resources, seeded card draws, escalating help. Beat your own last run.</p>
     </div>
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Head west ▸</button>
@@ -417,34 +571,28 @@ function screenOutfit() {
       </div>
     </div>
     <div class="panel">
-      <p>You have <b class="amber">$${E.START.money}</b>. Allocate your budget — an analyst plans from data.
-      <span class="dim">(Food $${E.PRICES.food}/lb · Parts $${E.PRICES.parts} each · Medicine $${E.PRICES.medicine} each. Unspent money stays cash for hints and forts.)</span></p>
+      <p>You have <b class="amber">$${E.START.coin}</b> and a full-health party. Put some toward food (${E.FOOD_PRICE * 100}¢/lb);
+      the rest rides as coin for ferries and tolls. <span class="dim">Earn more food and coin by taking jobs at each town.</span></p>
       <div class="row">
-        <div><label>$ Food</label><input type="number" id="aFood" value="100" min="0" max="160"></div>
-        <div><label>$ Parts</label><input type="number" id="aParts" value="40" min="0" max="160"></div>
-        <div><label>$ Medicine</label><input type="number" id="aMeds" value="12" min="0" max="160"></div>
+        <div><label>$ into Food</label><input type="number" id="aFood" value="36" min="0" max="60"></div>
       </div>
       <p id="allocSum" class="dim"></p>
     </div>
-    <p class="nextstep center">Name the party, split the budget, then hitch up — the trail starts at stop 1 of 9.</p>
+    <p class="nextstep center">Name the party, buy some food, then hitch up — the trail starts at town 1 of 9.</p>
     <div class="center"><button class="primary" onclick="startRun()">Hitch the oxen ▸</button></div>`;
   const upd = () => {
-    const s = ['aFood','aParts','aMeds'].reduce((t, id) => t + (+document.getElementById(id).value || 0), 0);
+    const s = +document.getElementById('aFood').value || 0;
     const el = document.getElementById('allocSum');
-    el.textContent = `Spending $${s} of $${E.START.money} — $${E.START.money - s} kept as cash`;
-    el.className = s > E.START.money ? 'red' : 'dim';
+    el.textContent = `${Math.floor(s / E.FOOD_PRICE)} lbs of food · $${Math.max(0, E.START.coin - s)} kept as coin`;
+    el.className = s > E.START.coin ? 'red' : 'dim';
   };
-  ['aFood','aParts','aMeds'].forEach(id => document.getElementById(id).oninput = upd);
+  document.getElementById('aFood').oninput = upd;
   upd();
 }
 
 function startRun() {
   const names = [0,1,2,3].map(i => document.getElementById('p' + i).value.trim() || 'Pioneer');
-  const alloc = {
-    food: +document.getElementById('aFood').value || 0,
-    parts: +document.getElementById('aParts').value || 0,
-    medicine: +document.getElementById('aMeds').value || 0,
-  };
+  const alloc = { food: +document.getElementById('aFood').value || 0 };
   try { run = E.newRun(C, names, alloc); }
   catch (e) { toast(e.message); return; }
   run.startedAt = Date.now();
@@ -501,7 +649,7 @@ function screenRiver() {
       <div class="objective"><span class="tag">Decision</span>The river blocks the trail. Pick one way across — outcomes repeat every run, so what you learn here you can plan around.</div>
       <button onclick="doCross('ford')">Ford it (free, risky)</button>
       <button onclick="doCross('caulk')">Caulk &amp; float (free, safer)</button>
-      <button onclick="doCross('ferry')" ${run.money < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry}, safe)</button>
+      <button onclick="doCross('ferry')" ${run.coin < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry}, safe)</button>
       <div id="riverOut"></div>
     </div>`;
 }
@@ -526,8 +674,8 @@ function screenArrival() {
       <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
       <p class="dim">${esc(v.flavor)}</p>
     </div>
-    <p class="nextstep center">Next: ${stop.questions.length || 3} ${esc(stop.concept)} questions. Full-credit answers feed the party.</p>
-    <div class="center"><button class="primary" onclick="startStop()">Enter the ${esc(stop.theme.toLowerCase())} challenge ▸</button></div>`;
+    <p class="nextstep center">Three jobs are posted in town. Take one — the pay is food and coin.</p>
+    <div class="center"><button class="primary" onclick="screenDraft()">Look around ${esc(stop.name)} ▸</button></div>`;
 }
 
 // The classic OT travel screen: wagon rolls across the landscape while the
@@ -591,31 +739,55 @@ ${'ⁿ'.repeat(LANE + 8)}`;
   };
 }
 
-function startStop() {
-  qState = { idx: 0, attempts: 0, hintsShown: 0, startedAt: Date.now(), correctCount: 0 };
-  buildTokens = [];
-  screenQuestion();
+// ---------- roguelite town draft ----------
+// Draw 3 same-tier cards, seeded per version+town so a given run's town always
+// posts the same three jobs. The player takes one; the others ride off.
+function drawCards(town) {
+  const tier = C.TOWN_TIER[town];
+  const pool = C.CARD_POOL.filter(c => c.tier === tier);
+  const rand = TrailRNG.fromVersion(`${run.version}:draft:${town}`);
+  return pool.map(c => ({ c, k: rand() })).sort((a, b) => a.k - b.k).slice(0, 3).map(x => x.c);
 }
 
-function screenQuestion() {
+function dpips(n) { return `<span class="dpips">${[1,2,3,4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`; }
+
+function screenDraft() {
   const stop = C.STOPS[run.stop - 1];
-  const q = stop.questions[qState.idx];
-  // Hints 1-2 are nudges; hint 3 auto-pastes the full answer into the editor.
-  const hints = q.hints.slice(0, Math.min(qState.hintsShown, 2)).map((h, i) =>
-    `<div class="dim">Hint ${i + 1}: ${esc(h)}</div>`).join('')
-    + (qState.hintsShown >= 3
-      ? '<div class="amber">Hint 3: the full answer is in the editor below — read it, then ▶ Execute.</div>' : '');
-  const nextHintCost = E.hintCost(qState.hintsShown);
+  const cards = drawCards(run.stop);
+  run._draft = cards;
   app.innerHTML = `
     ${trailMap()}${statbar()}
-    <h2>${esc(stop.name)} — ${esc(stop.concept)}</h2>
-    ${qState.idx === 0 && stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
+    <h2>${esc(stop.name)} — the job board</h2>
+    ${stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
+    <div class="objective"><span class="tag">Choose one</span>Three jobs are posted. Take one — the other two ride off with somebody else.</div>
+    <div class="cards">
+      ${cards.map((c, i) => `<div class="card">
+        <div><span class="badge">${esc(c.concept)}</span> ${dpips(c.tier)}</div>
+        <h3>${esc(c.title)}</h3>
+        <div class="story">${esc(c.story)}</div>
+        <div class="reward">Pays 🌾 ${c.reward.food} lbs · 💰 $${c.reward.coin}</div>
+        <button class="primary" onclick="startCard(${i})">Take this job ▸</button>
+      </div>`).join('')}
+    </div>`;
+}
+
+function startCard(i) {
+  qState = { card: run._draft[i], misses: 0, startedAt: Date.now(), resolved: false, townId: run.stop };
+  buildTokens = [];
+  screenCard();
+}
+
+function screenCard() {
+  const stop = C.STOPS[run.stop - 1];
+  const q = qState.card;
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>${esc(stop.name)} — ${esc(q.title)}</h2>
     <div class="panel">
-      <b>Question ${qState.idx + 1} of ${stop.questions.length}</b>
-      <span class="qdots">${stop.questions.map((_, i) =>
-        `<i class="${i < qState.idx ? 'done' : i === qState.idx ? 'now' : ''}"></i>`).join('')}</span>
+      <div><span class="badge">${esc(q.concept)}</span> ${dpips(q.tier)}
+        <span class="dim" style="float:right">Pays 🌾 ${q.reward.food} · 💰 $${q.reward.coin}</span></div>
+      <p class="story" style="margin:8px 0">${esc(q.story)}</p>
       <div class="objective"><span class="tag">🎯 Your task</span>${esc(q.prompt)}</div>
-      ${hints}
       <div class="modetabs">
         <button class="${inputMode === 'type' ? 'on' : ''}" onclick="setInputMode('type')">⌨ Type</button>
         <button class="${inputMode === 'build' ? 'on' : ''}" onclick="setInputMode('build')">👆 Build</button>
@@ -628,10 +800,10 @@ function screenQuestion() {
       ${schemaStripHtml(q)}
       <div>
         <button class="primary" onclick="submitAnswer()">▶ Execute</button>
-        <button onclick="takeHint()" ${qState.hintsShown >= 3 ? 'disabled' : ''}>
-          ${qState.hintsShown >= 2 ? 'Show answer' : `Hint ${qState.hintsShown + 1}`}${nextHintCost ? ` (−${nextHintCost} lbs food)` : ' (free)'}
-        </button>
-        <button onclick="skipQuestion()">Give up (−health)</button>
+      </div>
+      <div class="nextstep" style="margin-top:6px">
+        Runs used <span class="trypips" id="trypips">${pipsHtml()}</span>
+        &nbsp;·&nbsp; 1st miss is free &nbsp;·&nbsp; 2nd fills in half the code &nbsp;·&nbsp; 3rd hands you the answer
       </div>
       <div id="result"></div>
     </div>
@@ -655,7 +827,7 @@ function setInputMode(m) {
   inputMode = m;
   localStorage.setItem('sql-trail-input-v1', m);
   const keep = editor ? editor.getValue() : '';
-  screenQuestion();
+  screenCard();
   if (m === 'type' && keep && editor) editor.setValue(keep);
 }
 
@@ -700,55 +872,116 @@ function guideBlurb(concept) {
   return g[concept] || concept;
 }
 
-function takeHint() {
-  const cost = E.hintCost(qState.hintsShown);
-  if (cost > 0 && run.food < cost) return toast('Not enough food for that hint.');
-  run.food -= cost;
-  qState.hintsShown++;
-  screenQuestion();
-  if (qState.hintsShown >= 3 && editor) {
-    buildTokens = [];
-    editor.setValue(C.STOPS[run.stop - 1].questions[qState.idx].answer);
+// Escalating help (replaces the old hint ladder). Pre-fill ~50% of the answer,
+// cut at a word boundary, so the player finishes the tail themselves.
+function fillHalf(q) {
+  const toks = q.answer.split(/\s+/);
+  const target = q.answer.length * 0.5;
+  let acc = '', i = 0;
+  while (i < toks.length - 1 && acc.length < target) { acc += (acc ? ' ' : '') + toks[i]; i++; }
+  if (!acc) acc = toks[0] || '';
+  if (editor) {
+    editor.setValue(acc + ' ');
+    const last = editor.lastLine();
+    editor.setCursor({ line: last, ch: editor.getLine(last).length });
+    if (typeof buildTokens !== 'undefined') buildTokens = acc ? acc.split(/\s+/) : [];
     editor.focus();
   }
 }
 
+// Concepts the trail had to hand the player land in the Trail Journal.
+function addFollowUp(card) {
+  run.followUp = run.followUp || [];
+  if (!run.followUp.some(f => f.concept === card.concept))
+    run.followUp.push({ concept: card.concept, desc: guideBlurb(card.concept) });
+}
+
+// One card, one loop: keep running until FULL credit or three misses.
+// A "try" is any real query you run. 1st miss free, 2nd fills half the code
+// (party penalty), 3rd hands over the answer (bigger penalty + journal entry).
 function submitAnswer() {
-  const stop = C.STOPS[run.stop - 1];
-  const q = stop.questions[qState.idx];
+  const q = qState.card;
   const sqlText = editor ? editor.getValue() : '';
-  qState.attempts++;
   const t0 = performance.now();
   const r = G.grade(SQL, C.SEED_SQL, q, sqlText);
   const execMs = Math.max(1, Math.round(performance.now() - t0));
   const out = document.getElementById('result');
   refreshExplorer(r.schemaAfter);
 
-  if (r.tier === 'fail' && (r.reason === 'rejected' || r.reason === 'sql-error')) {
-    // Free retry on syntax/sandbox errors — the trail punishes wrong answers, not typos.
-    out.innerHTML = queryOutput(r, q, execMs, null);
+  // Hitting Execute with nothing isn't a "try" — nudge, don't spend a miss.
+  if (r.reason === 'rejected' && /empty/i.test(r.error || '')) {
+    out.innerHTML = queryOutput(r, q, execMs) + `<p class="dim">Write a query first, then hit Execute.</p>`;
+    return;
+  }
+
+  // Answer already handed over on the 3rd miss — just show the run.
+  if (qState.resolved) {
+    out.innerHTML = queryOutput(r, q, execMs) +
+      `<p class="amber">That's the one — the trail guide walked you through it.</p>
+       <button class="primary" onclick="afterCard()">Continue ▸</button>`;
     return;
   }
 
   const timeMs = Date.now() - qState.startedAt;
-  if (r.tier === 'full' || r.tier === 'partial') {
-    const reward = E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
-    if (r.tier === 'full') qState.correctCount++;
-    out.innerHTML = `
-      ${queryOutput(r, q, execMs, null)}
-      ${r.tier === 'full'
-        ? `<p class="amber">Correct. You gathered ${reward} lbs of supplies.</p>`
-        : `<p class="amber">Partial credit (${Math.round(r.overlap * 100)}% of rows). You gathered ${reward} lbs but could only carry half.</p>`}
-      <button onclick="nextQuestion()">Continue</button>`;
-  } else {
-    E.recordAnswer(run, stop.id, r, qState.attempts, qState.hintsShown, timeMs);
-    out.innerHTML = `
-      ${queryOutput(r, q, execMs, null)}
-      <p class="red">The query ran, but the rows are wrong. The party goes a little hungrier.</p>
-      <button onclick="screenQuestion()">Try again</button>
-      <button onclick="nextQuestion()">Move on</button>`;
+
+  if (r.tier === 'full') {
+    const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs);
+    celebrate('win'); refreshStat();
+    out.innerHTML = queryOutput(r, q, execMs) +
+      `<p class="amber">${esc(pick(WIN_LINES))} You earned 🌾 ${reward.food} lbs and 💰 $${reward.coin}.</p>
+       <button class="primary" onclick="afterCard()">Continue ▸</button>`;
+    return;
   }
-  if (run.dead) screenTombstone();
+
+  // --- a miss ---
+  qState.misses++;
+  const pp = document.getElementById('trypips'); if (pp) pp.innerHTML = pipsHtml();
+
+  if (qState.misses === 1) {
+    celebrate('miss1');
+    out.innerHTML = queryOutput(r, q, execMs) +
+      `<div class="helpline"><b>${esc(pick(MISS_LINES))}</b><br>
+        <span class="dim">First slip's on the house. Fix your query and run it again.</span></div>`;
+    return;
+  }
+
+  if (qState.misses === 2) {
+    celebrate('miss2');
+    E.applyEffects(run, { health: -10 }); refreshStat();
+    if (run.dead) { out.innerHTML = queryOutput(r, q, execMs); return screenTombstone(); }
+    fillHalf(q);
+    out.innerHTML = queryOutput(r, q, execMs) +
+      `<div class="helpline"><b>${esc(pick(MISS_LINES))}</b><br>
+        <span class="dim">The party pays for this one — everyone's worse for wear (−10 health).
+        I dropped the first half of the answer in your editor. Finish the rest and run it.</span></div>`;
+    return;
+  }
+
+  // 3rd miss (or beyond): hand over the answer, biggest penalty, journal it.
+  celebrate('miss3');
+  E.applyEffects(run, { health: -18, food: -10 }); refreshStat();
+  addFollowUp(q);
+  E.recordAnswer(run, qState.townId, q, 'fail', qState.misses, timeMs);
+  qState.resolved = true;
+  if (editor) {
+    editor.setValue(q.answer);
+    if (typeof buildTokens !== 'undefined') buildTokens = q.answer.trim().split(/\s+/);
+    editor.focus();
+  }
+  if (run.dead) { out.innerHTML = queryOutput(r, q, execMs); return screenTombstone(); }
+  out.innerHTML = queryOutput(r, q, execMs) +
+    `<div class="helpline"><b>${esc(pick(MISS_LINES))}</b><br>
+      <span class="dim">That one cost the party dearly (−18 health, −10 food). Here's the full answer, dropped in your
+      editor — run it to watch it work. <b>${esc(q.concept)}</b> was added to your Trail Journal to brush up on.</span></div>
+    <button class="primary" onclick="afterCard()">Continue ▸</button>`;
+}
+
+// One card per town: resolving it sends you back onto the trail (or to the
+// gray-box report once you're past the authored towns).
+function afterCard() {
+  if (run.dead) return screenTombstone();
+  if (run.stop >= 4) return screenReport(true); // authored towns 1-4
+  screenTravel();
 }
 
 // Real-world query editor output: Results grid + Messages tab.
@@ -787,13 +1020,6 @@ function showOutTab(uid, tab) {
   }
 }
 
-function skipQuestion() {
-  const stop = C.STOPS[run.stop - 1];
-  E.recordAnswer(run, stop.id, { tier: 'fail' }, qState.attempts + 1, qState.hintsShown, Date.now() - qState.startedAt);
-  run.party.forEach(m => { if (m.alive) m.health -= 5; });
-  nextQuestion();
-}
-
 function renderRows(res) {
   if (!res || !res.columns.length) return '<p class="dim">(no rows returned)</p>';
   const head = '<tr><th class="dim">#</th>' + res.columns.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -804,24 +1030,6 @@ function renderRows(res) {
       : `<td>${C.ITEM_ICONS[v] ? C.ITEM_ICONS[v] + ' ' : ''}${esc(v)}</td>`).join('') + '</tr>').join('');
   const more = res.values.length > 50 ? `<p class="dim">…${res.values.length - 50} more rows</p>` : '';
   return `<table>${head}${body}</table>${more}`;
-}
-
-function nextQuestion() {
-  const stop = C.STOPS[run.stop - 1];
-  qState.idx++;
-  if (qState.idx >= stop.questions.length) {
-    // Stop failure = under half full-credit answers (GDD §5: move on weakened).
-    if (qState.correctCount < Math.ceil(stop.questions.length / 2)) {
-      E.failStop(run);
-      toast('A rough stop. The party moves on weakened.');
-    }
-    if (run.dead) return screenTombstone();
-    screenTravel();
-  } else {
-    qState.attempts = 0; qState.hintsShown = 0; qState.startedAt = Date.now();
-    buildTokens = [];
-    screenQuestion();
-  }
 }
 
 function screenTombstone() {
@@ -857,8 +1065,8 @@ function screenReport(finished) {
   const mins = Math.round((Date.now() - run.startedAt) / 6000) / 10;
   const rows = m.perStop.map(s => {
     const stop = C.STOPS[s.stop - 1];
-    return `<tr><td>${s.stop}. ${esc(stop.name)}</td><td>${esc(stop.concept)}</td>
-      <td>${s.correct}/${stop.questions.length}</td><td>${s.partial}</td><td>${s.hints}</td>
+    return `<tr><td>${s.stop}. ${esc(stop.name)}</td><td>${esc(s.concept)}</td>
+      <td>${s.correct ? '✅' : '—'}</td><td>${s.misses}</td>
       <td>${Math.round(s.timeMs / 1000)}s</td></tr>`;
   }).join('');
   const hist = loadHistory();
@@ -868,14 +1076,24 @@ function screenReport(finished) {
     <div class="panel">
       <div class="statbar">
         <span>Time <b>${mins}</b> min</span><span>Days <b>${run.day}</b></span>
-        <span>Score <b>${m.score}</b></span><span>Hints <b>${m.hints}</b></span>
+        <span>Score <b>${m.score}</b></span><span>Help <b>${m.hints}</b></span>
         <span>Deaths <b>${m.deaths}</b></span>
       </div>
-      <table><tr><th>Stop</th><th>Concept</th><th>Full</th><th>Partial</th><th>Hints</th><th>Time</th></tr>${rows}</table>
+      <table><tr><th>Town</th><th>Job</th><th>Solved</th><th>Misses</th><th>Time</th></tr>${rows}</table>
       ${m.arrival ? `<p class="amber">Arrival bonus: +${m.arrival.total}</p><div class="dim">${m.arrival.parts.map(p => `${esc(p.label)} +${p.value}`).join(' · ')}</div>` : ''}
       ${prev ? `<p class="dim">Last run: score ${prev.score}, ${prev.mins} min — ${m.score > prev.score ? '<span class="amber">you beat it.</span>' : 'beat it next time.'}</p>` : '<p class="dim">First recorded run. This is your baseline.</p>'}
-      <p class="dim">The gray-box currently covers stops 1-4. Stops 5-9 and the full Journey Report land in later batches.</p>
+      <p class="dim">The gray-box currently covers towns 1-4. Towns 5-9 (harder card tiers) unlock in later batches.</p>
     </div>
+    ${(run.followUp && run.followUp.length) ? `
+    <div class="panel">
+      <h2 style="margin-top:0">📖 Trail Journal — brush up on these</h2>
+      <p class="dim">Concepts the trail had to hand you. Review them and the next run is yours.</p>
+      ${run.followUp.map(f => `<div style="margin:10px 0">
+        <b class="amber">${esc(f.concept)}</b>
+        <div class="dim">${esc(f.desc)}</div>
+        <a href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Study it in the Analyst Prep Kit ▸</a>
+      </div>`).join('')}
+    </div>` : ''}
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
       <button onclick="screenTitle()">Title</button>

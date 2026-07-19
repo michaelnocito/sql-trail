@@ -1,20 +1,19 @@
-// Engine: trail state machine, resources, seeded event scheduler, scoring.
-// Pure logic, no DOM — index.html renders it, tests drive it headless.
+// Engine: trail state machine with THREE resources (food, coin, health — the
+// party is one shared health bar now), seeded events, and roguelite card
+// rewards. Pure logic, no DOM; index.html renders it, tests drive it headless.
 (function (root) {
   'use strict';
 
   const RNG = (typeof module !== 'undefined' && module.exports)
     ? require('./rng.js') : root.TrailRNG;
 
-  const PACE = { steady: 1.0, strenuous: 1.25, grueling: 1.5 };       // miles multiplier
-  const RATIONS = { filling: 3, meager: 2, 'bare-bones': 1 };          // lbs/person/day
-  const LEG_DAYS = 12;          // base days per leg at steady pace
-  const START = { money: 160, food: 0, parts: 0, medicine: 0 };        // player allocates money at outfitting
-  const PRICES = { food: 0.25, parts: 20, medicine: 12 };              // outfitting prices per unit
-  const HINT_COST = [0, 10, 25]; // supplies (lbs food) per hint tier
+  const PACE = { steady: 1.0, strenuous: 1.25, grueling: 1.5 };   // miles multiplier
+  const RATIONS = { filling: 4, meager: 2.5, 'bare-bones': 1.5 }; // lbs/day
+  const LEG_DAYS = 12;               // base days per leg at steady pace
+  const START = { coin: 60, food: 0, health: 100 };
+  const FOOD_PRICE = 0.3;            // $ per lb at the outfitter
 
-  // Deterministic event schedule: one event per leg, drawn from the pool with
-  // a PRNG seeded by GAME_VERSION (GDD §6: seeded random only).
+  // Deterministic event schedule: one event per leg, seeded by GAME_VERSION.
   function buildEventSchedule(content) {
     const rand = RNG.fromVersion(content.GAME_VERSION);
     const schedule = [];
@@ -25,191 +24,133 @@
   }
 
   function newRun(content, partyNames, allocation) {
-    // allocation: dollars into {food, parts, medicine}; remainder stays cash.
-    const spent = (allocation.food || 0) + (allocation.parts || 0) + (allocation.medicine || 0);
-    if (spent > START.money) throw new Error('Allocation exceeds starting money.');
+    // allocation.food = dollars spent on food; the rest stays as coin.
+    const foodDollars = Math.max(0, Math.min(allocation.food || 0, START.coin));
     return {
       version: content.GAME_VERSION,
       startedAt: null,             // stamped by the UI (no Date in engine)
-      stop: 0,                     // 0 = outfitting done, travelling to stop 1
+      stop: 0,                     // 0 = outfitting done, travelling to town 1
       day: 0,
       pace: 'steady',
       rations: 'meager',
-      money: START.money - spent,
-      food: Math.floor((allocation.food || 0) / PRICES.food),
-      parts: Math.floor((allocation.parts || 0) / PRICES.parts),
-      medicine: Math.floor((allocation.medicine || 0) / PRICES.medicine),
-      morale: 70,
-      party: partyNames.slice(0, 4).map(n => ({ name: n, health: 100, alive: true })),
+      coin: START.coin - foodDollars,
+      food: Math.floor(foodDollars / FOOD_PRICE),
+      health: START.health,        // single shared party health bar (0-100)
+      party: partyNames.slice(0, 4).map(n => ({ name: n })),
       schedule: buildEventSchedule(content),
       log: [],
-      metrics: {
-        perStop: [],               // {stop, correct, attempts, hints, partial, timeMs}
-        hints: 0, deaths: 0, backtracks: 0, score: 0,
-      },
+      followUp: [],                // concepts the trail had to hand the player
+      metrics: { perStop: [], hints: 0, deaths: 0, score: 0 },
       dead: false,
     };
   }
 
-  function alive(run) { return run.party.filter(m => m.alive); }
-
-  function applyEffects(run, effects) {
-    if (effects.money) run.money = Math.max(0, run.money + effects.money);
-    if (effects.food) run.food = Math.max(0, run.food + effects.food);
-    if (effects.parts) run.parts = Math.max(0, run.parts + effects.parts);
-    if (effects.days) run.day += effects.days;
-    if (effects.morale) run.morale = Math.min(100, Math.max(0, run.morale + effects.morale));
-    if (effects.health) {
-      run.party.forEach((m, i) => {
-        if (m.alive) m.health = Math.min(100, m.health + (effects.health[i] || 0));
-      });
-    }
-    checkDeaths(run);
-  }
-
-  // Seeded by version+name+day so the same run always writes the same history.
-  function deathCause(run, name) {
-    const causes = (run.causes || ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion']);
-    const rand = RNG.fromVersion(`${run.version}:death:${name}:${run.day}`);
+  // Seeded by version+day so the same run always writes the same fate.
+  function deathCause(run) {
+    const causes = run.causes || ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion'];
+    const rand = RNG.fromVersion(`${run.version}:death:${run.day}`);
     return causes[Math.floor(rand() * causes.length)];
   }
 
   function checkDeaths(run) {
-    for (const m of run.party) {
-      if (m.alive && m.health <= 0) {
-        m.alive = false;
-        m.health = 0;
-        run.metrics.deaths++;
-        run.log.push({ day: run.day, text: `💀 ${m.name} has died of ${deathCause(run, m.name)}.` });
-      }
+    if (!run.dead && run.health <= 0) {
+      run.health = 0;
+      run.dead = true;
+      run.metrics.deaths = run.party.length;
+      run.log.push({ day: run.day, text: `💀 The party has succumbed to ${deathCause(run)}.` });
     }
-    if (alive(run).length === 0) run.dead = true;
   }
 
-  // River crossing (Batch 1). Outcome seeded per version+stop+choice:
-  // identical rivers every run, so "last run fording cost me 30 lbs" is a
-  // plannable fact — the analyst-thinking pillar.
+  function applyEffects(run, e) {
+    if (e.coin) run.coin = Math.max(0, run.coin + e.coin);
+    if (e.food) run.food = Math.max(0, run.food + e.food);
+    if (e.health) run.health = Math.min(100, run.health + e.health); // may go <=0 → death
+    if (e.days) run.day += e.days;
+    checkDeaths(run);
+  }
+
+  // River crossing. Outcome seeded per version+stop+choice, so identical rivers
+  // every run — a plannable fact (the analyst-thinking pillar).
   function crossRiver(run, stopId, choice, river) {
     const rand = RNG.fromVersion(`${run.version}:river:${stopId}:${choice}`);
     const roll = rand();
     let text, effects = {};
     if (choice === 'ferry') {
-      if (run.money < river.ferry) return { ok: false, text: `The ferry operator wants $${river.ferry}. You don't have it.` };
-      effects.money = -river.ferry;
+      if (run.coin < river.ferry) return { ok: false, text: `The ferry operator wants $${river.ferry}. You're short.` };
+      effects.coin = -river.ferry;
       text = `The ferry carries you across the ${river.name} without incident. -$${river.ferry}.`;
     } else if (choice === 'caulk') {
       if (roll < 0.8) text = `You caulk the wagon and float the ${river.name} clean. Dry as a ledger.`;
-      else { effects = { food: -15, morale: -5 }; text = `The wagon takes on water in the ${river.name}. 15 lbs of food ruined.`; }
+      else { effects = { food: -15 }; text = `The wagon takes on water in the ${river.name}. 15 lbs of food ruined.`; }
     } else { // ford
       if (roll < 0.6) text = `You ford the ${river.name} at the shallows. Nothing lost.`;
-      else { effects = { food: -30, morale: -5, health: [-5, -5, -5, -5] }; text = `The ${river.name} is deeper than it looked. 30 lbs of food swept away; everyone is soaked and battered.`; }
+      else { effects = { food: -20, health: -8 }; text = `The ${river.name} runs deeper than it looked. Food swept away and the party battered.`; }
     }
     applyEffects(run, effects);
     run.log.push({ day: run.day, text: '🌊 ' + text });
     return { ok: true, text, effects };
   }
 
-  // Arrival-condition bonus (Batch 1): classic OT scores the state you
-  // arrive in, not just the trip. Returns the breakdown for the report.
+  // Arrival-condition bonus: the state you arrive in, scored.
   function arrivalBonus(run) {
-    const survivors = alive(run).length;
     const parts = [
-      { label: 'Survivors', value: survivors * 100 },
+      { label: 'Health', value: Math.round(run.health * 3) },
       { label: 'Food remaining', value: Math.round(run.food / 4) },
-      { label: 'Cash on hand', value: run.money },
-      { label: 'Spare parts', value: run.parts * 20 },
-      { label: 'Medicine', value: run.medicine * 10 },
+      { label: 'Coin on hand', value: run.coin },
     ];
     return { parts, total: parts.reduce((t, p) => t + p.value, 0) };
   }
 
-  // Travel one leg toward the next stop. Returns the event that fired.
+  // Travel one leg toward the next town. Returns the event that fired.
   function travelLeg(run) {
     const days = Math.round(LEG_DAYS / PACE[run.pace]);
-    const eaten = days * RATIONS[run.rations] * alive(run).length;
+    const eaten = Math.round(days * RATIONS[run.rations]);
     run.day += days;
 
     if (run.food >= eaten) {
       run.food -= eaten;
     } else {
-      // Starvation: empty larder drains health (GDD §6).
       run.food = 0;
-      run.party.forEach(m => { if (m.alive) m.health -= 10; });
-      run.log.push({ day: run.day, text: 'The food ran out on this leg. The party weakens.' });
+      run.health -= 12; // starvation drains the party
+      run.log.push({ day: run.day, text: 'The larder ran dry on this leg. The party weakens.' });
     }
-    // Strenuous pace wears the party; bare-bones rations do too.
-    if (run.pace === 'grueling') run.party.forEach(m => { if (m.alive) m.health -= 5; });
-    if (run.rations === 'bare-bones') run.party.forEach(m => { if (m.alive) m.health -= 3; });
+    if (run.pace === 'grueling') run.health -= 6;
+    if (run.rations === 'bare-bones') run.health -= 4;
 
     const event = run.schedule[run.stop];
     if (event) {
-      // Breakdown events consume a part if you have one, else cost days.
-      const icon = event.icon ? event.icon + ' ' : '';
-      if (event.effects.parts && run.parts <= 0 && event.effects.parts < 0) {
-        run.day += 3;
-        run.log.push({ day: run.day, text: icon + event.text + ' No spare — you lose 3 days improvising.' });
-        applyEffects(run, { ...event.effects, parts: 0, days: 0 });
-      } else {
-        run.log.push({ day: run.day, text: icon + event.text });
-        applyEffects(run, event.effects);
-      }
+      run.log.push({ day: run.day, text: (event.icon ? event.icon + ' ' : '') + event.text });
+      applyEffects(run, event.effects);
     }
     checkDeaths(run);
     run.stop += 1;
     return event;
   }
 
-  // Morale multiplier on stop rewards (GDD §6).
-  function moraleMult(run) { return 0.75 + (run.morale / 100) * 0.5; } // 0.75 - 1.25
-
-  // Record one graded question; returns reward applied.
-  function recordAnswer(run, stopId, result, attempts, hintsUsed, timeMs) {
-    const base = { full: 40, partial: 20, fail: 0 }[result.tier];   // lbs of food equivalent
-    const reward = Math.round(base * moraleMult(run));
-    run.food += reward;
-    run.money += result.tier === 'full' ? 10 : result.tier === 'partial' ? 5 : 0;
-    run.metrics.score += result.tier === 'full' ? 100 : result.tier === 'partial' ? 50 : 0;
-    let stopStats = run.metrics.perStop.find(s => s.stop === stopId);
-    if (!stopStats) {
-      stopStats = { stop: stopId, correct: 0, partial: 0, attempts: 0, hints: 0, timeMs: 0 };
-      run.metrics.perStop.push(stopStats);
+  // Roguelite reward: FULL credit pays the card's bounty, reduced 25% per miss.
+  // Anything short of full pays nothing (the escalating-help penalties already bit).
+  function recordAnswer(run, townId, card, tier, misses, timeMs) {
+    let food = 0, coin = 0, score = 0;
+    if (tier === 'full') {
+      const mult = Math.max(0, 1 - 0.25 * misses);
+      food = Math.round((card.reward.food || 0) * mult);
+      coin = Math.round((card.reward.coin || 0) * mult);
+      score = 100;
     }
-    stopStats.attempts += attempts;
-    stopStats.hints += hintsUsed;
-    stopStats.timeMs += timeMs || 0;
-    if (result.tier === 'full') stopStats.correct++;
-    if (result.tier === 'partial') stopStats.partial++;
-    run.metrics.hints += hintsUsed;
-    return reward;
-  }
-
-  // Failing a whole stop: move on weakened (GDD §5).
-  function failStop(run) {
-    run.party.forEach(m => { if (m.alive) m.health -= 10; });
-    run.food = Math.max(0, run.food - 20);
-    run.morale = Math.max(0, run.morale - 10);
-    checkDeaths(run);
-  }
-
-  function hintCost(tier) { return HINT_COST[tier] || 0; }
-
-  // Burn-rate dashboard math (GDD §6): at current pace/rations, which stop
-  // does the food run out at?
-  function burnRate(run) {
-    const perLeg = Math.round(LEG_DAYS / PACE[run.pace]) * RATIONS[run.rations] * alive(run).length;
-    const legsLeft = perLeg > 0 ? run.food / perLeg : Infinity;
-    return {
-      lbsPerLeg: perLeg,
-      runsOutAtStop: run.stop + Math.floor(legsLeft) + 1,
-      legsOfFood: Math.round(legsLeft * 10) / 10,
-    };
+    run.food += food;
+    run.coin += coin;
+    run.metrics.score += score;
+    run.metrics.hints += misses;
+    run.metrics.perStop.push({
+      stop: townId, concept: card.concept,
+      correct: tier === 'full' ? 1 : 0, misses, timeMs: timeMs || 0,
+    });
+    return { food, coin };
   }
 
   const Engine = {
-    PACE, RATIONS, START, PRICES, LEG_DAYS,
-    newRun, travelLeg, recordAnswer, failStop, hintCost, burnRate,
-    buildEventSchedule, applyEffects, moraleMult, alive,
-    crossRiver, arrivalBonus, deathCause,
+    PACE, RATIONS, START, FOOD_PRICE, LEG_DAYS,
+    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else root.TrailEngine = Engine;

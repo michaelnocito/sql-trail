@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 19 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 21 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,16 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Roguelite reboot (SHIPPED build 21, awaiting Mike's test)
+Mike's direction: too many resources; make it roguelite — at each town, choose between 3 query "cards" (rogue-lite draft), each a funny story tie-in.
+Decisions (Mike): **3 resources** (Food/Coin/Health, party = one shared bar), **draw-3-pick-1 once per town**, **ramped by town**.
+- Engine rewritten (js/engine.js): food/coin/health only (no parts/medicine/morale/per-member health). Death = health ≤ 0. Rewards pay food+coin per card, −25% per miss. Events remapped to the 3 resources. crossRiver/arrivalBonus/travelLeg all on the new model.
+- Content restructured (content/content.js, v0.2.0): CARD_POOL of 16 cards (4 per tier 1-4), each with title + funny story + prompt + answer + reward; TOWN_TIER maps towns 1-4 → tiers 1-4. Towns draw 3 same-tier cards seeded per version+town.
+- Flow: arrival → screenDraft (3 job cards, pick one) → screenCard (chosen card, escalating-help mechanic intact) → afterCard → travel/report. Gray-box = towns 1-4.
+- UI: single colored health bar in statbar (live-refreshes on reward/penalty), card-draft grid, difficulty pips, reward preview. Outfitter simplified to a single Food-vs-Coin split.
+- 63 tests green; browser-verified full 4-town run (draft, win celebration, miss escalation, half-fill, journal, report).
+- NEXT tiers 5-7 (subqueries/CASE/windows) = towns 5-7 in Batch 3, same card shape.
 
 ### Batch 1 — Era polish (SHIPPED build 14, awaiting Mike's test)
 - Landmark arrival vignettes for all 9 stops
