@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 22 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 28 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,16 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Batch 8.5 — Graphical upgrade: real art backdrop (SHIPPED build 28)
+Mike's direction: use his own art (art site michaelnocito.github.io/art) in the same faint-background fashion as the current sketches, non-intrusive to the UI. Remove the amateur-looking "black blotches" (burnt holes) and the placeholder line-art sketches; no Sitting Bull portrait.
+- Removed the 7 inline-SVG frontier sketches AND the 3 SVG "burnt hole" blotches from `body::before`.
+- Added 3 Nocito originals, processed to faint sepia (paper keyed out to transparency, ink tinted to the existing `#6f4e2e`), stored in `art/`:
+  - `bg-lake.png` — "Lake scene" charcoal dock; sepia duotone fading up from the bottom, reads as the trail's horizon (bottom center).
+  - `bg-bonfire.png` — "Bonfire" pen sketch, label cropped; trail camp (bottom-left margin).
+  - `bg-cornfield.png` — "Fall" pen sketch (scarecrows + signpost + cornfield); harvest/directions (top-right margin).
+- Kept the warm paper glow + grain layers. Placement uses clamp() sizes so art hugs the margins on desktop and stays behind cards on mobile. Processing script kept in scratchpad (PIL); source JPGs pulled from the art site.
+- 127 tests green; browser-verified home + outfitter screens (art faint, UI cards clean on top).
 
 ### Roguelite reboot (SHIPPED build 21, awaiting Mike's test)
 Mike's direction: too many resources; make it roguelite — at each town, choose between 3 query "cards" (rogue-lite draft), each a funny story tie-in.

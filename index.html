@@ -86,23 +86,17 @@
     background: var(--brown-dark); border: none; color: #fff8ec; border-radius: 8px;
     padding: 10px 18px; display: none; max-width: 90vw; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
 
-  /* --- Aged wanted-poster backdrop (original line art — no third-party assets) ---
-     Faded frontier sketches + burnt holes + paper grain sit behind the cards,
-     showing through the beige gaps and desktop side margins. Painted on
-     body::before so it layers above the paper fill but under all content. --- */
+  /* --- Aged-paper backdrop (Michael Nocito original drawings) ---
+     Faint sepia-keyed art sits in the margins behind the cards, showing through
+     the beige gaps and desktop side margins: the lake-dock charcoal reads as the
+     trail's horizon, the bonfire + cornfield pen sketches as trail camp/harvest.
+     Paper glow + grain remain. Painted on body::before, under all content. --- */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .8;
     background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='150' viewBox='0 0 230 150' fill='none' stroke='%236f4e2e' stroke-opacity='0.5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='66' cy='114' r='27'/%3E%3Ccircle cx='174' cy='114' r='27'/%3E%3Ccircle cx='66' cy='114' r='4'/%3E%3Ccircle cx='174' cy='114' r='4'/%3E%3Cpath d='M66 87v54M39 114h54M47 95l38 38M85 95l-38 38M174 87v54M147 114h54M155 95l38 38M193 95l-38 38'/%3E%3Cpath d='M42 100c0 15 9 21 24 21h108c15 0 24-6 24-21'/%3E%3Cpath d='M42 100h150'/%3E%3Cpath d='M48 100c12-54 128-54 140 0'/%3E%3Cellipse cx='188' cy='74' rx='7' ry='23'/%3E%3Cpath d='M96 52v48M142 52v48'/%3E%3C/svg%3E") bottom -6px right -14px / 232px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%236f4e2e' stroke-opacity='0.45' stroke-width='2.5'%3E%3Ccircle cx='60' cy='60' r='52'/%3E%3Ccircle cx='60' cy='60' r='43'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3Cpath d='M60 17v86M17 60h86M29 29l62 62M91 29l-62 62'/%3E%3C/svg%3E") top 66px left -22px / 120px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120' fill='none' stroke='%236f4e2e' stroke-opacity='0.4' stroke-width='2.5'%3E%3Ccircle cx='60' cy='60' r='52'/%3E%3Ccircle cx='60' cy='60' r='43'/%3E%3Ccircle cx='60' cy='60' r='9'/%3E%3Cpath d='M60 17v86M17 60h86M29 29l62 62M91 29l-62 62'/%3E%3C/svg%3E") top 44% right -16px / 94px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='120' viewBox='0 0 150 120' fill='none' stroke='%236f4e2e' stroke-opacity='0.5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M75 32c-20 0-25 30-15 56 4 12 26 12 30 0 10-26 5-56-15-56z'/%3E%3Cpath d='M60 44C24 26 16 58 44 60'/%3E%3Cpath d='M90 44c36-18 44 14 16 16'/%3E%3Ccircle cx='66' cy='58' r='5'/%3E%3Ccircle cx='84' cy='58' r='5'/%3E%3Cpath d='M75 70l-6 14h12z'/%3E%3C/svg%3E") top 8px right -20px / 148px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='108' height='120' viewBox='0 0 108 120' fill='none' stroke='%236f4e2e' stroke-opacity='0.5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M26 118V52a28 28 0 0 1 56 0v66'/%3E%3Cpath d='M54 60v26M42 70h24'/%3E%3Cpath d='M12 118h84'/%3E%3Cpath d='M18 112q10-8 20 0M62 112q10-8 20 0'/%3E%3C/svg%3E") bottom -4px left 5% / 108px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='140' viewBox='0 0 110 140' fill='none' stroke='%236f4e2e' stroke-opacity='0.45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M55 138V52'/%3E%3Cpath d='M55 100H38V70'/%3E%3Cpath d='M55 84h19V54'/%3E%3Cpath d='M22 138h66'/%3E%3C/svg%3E") bottom 17% left -12px / 108px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='100' viewBox='0 0 320 100' fill='none' stroke='%236f4e2e' stroke-opacity='0.4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='270' cy='30' r='16'/%3E%3Cpath d='M0 92l54-52 38 34 58-50 50 54 50-34 46 28 24-16'/%3E%3Cpath d='M120 44l30-20 30 26'/%3E%3C/svg%3E") bottom 46px center / 320px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='92' height='84' viewBox='0 0 92 84'%3E%3Cdefs%3E%3CradialGradient id='g' cx='46%25' cy='44%25' r='56%25'%3E%3Cstop offset='0' stop-color='%23140d06'/%3E%3Cstop offset='42%25' stop-color='%232a1c0f'/%3E%3Cstop offset='70%25' stop-color='%235a3a1e'/%3E%3Cstop offset='88%25' stop-color='%238a5a30' stop-opacity='0.4'/%3E%3Cstop offset='100%25' stop-color='%238a5a30' stop-opacity='0'/%3E%3C/radialGradient%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.08' numOctaves='2' seed='4'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='16'/%3E%3C/filter%3E%3C/defs%3E%3Cellipse cx='46' cy='42' rx='31' ry='26' fill='url(%23g)' filter='url(%23r)'/%3E%3C/svg%3E") top 24px left 13% / 92px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='70' height='66' viewBox='0 0 70 66'%3E%3Cdefs%3E%3CradialGradient id='g' cx='46%25' cy='44%25' r='56%25'%3E%3Cstop offset='0' stop-color='%23140d06'/%3E%3Cstop offset='42%25' stop-color='%232a1c0f'/%3E%3Cstop offset='70%25' stop-color='%235a3a1e'/%3E%3Cstop offset='88%25' stop-color='%238a5a30' stop-opacity='0.4'/%3E%3Cstop offset='100%25' stop-color='%238a5a30' stop-opacity='0'/%3E%3C/radialGradient%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='2' seed='9'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='13'/%3E%3C/filter%3E%3C/defs%3E%3Cellipse cx='35' cy='33' rx='24' ry='20' fill='url(%23g)' filter='url(%23r)'/%3E%3C/svg%3E") top 30% right 15% / 70px no-repeat,
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='94' viewBox='0 0 104 94'%3E%3Cdefs%3E%3CradialGradient id='g' cx='46%25' cy='44%25' r='56%25'%3E%3Cstop offset='0' stop-color='%23140d06'/%3E%3Cstop offset='42%25' stop-color='%232a1c0f'/%3E%3Cstop offset='70%25' stop-color='%235a3a1e'/%3E%3Cstop offset='88%25' stop-color='%238a5a30' stop-opacity='0.4'/%3E%3Cstop offset='100%25' stop-color='%238a5a30' stop-opacity='0'/%3E%3C/radialGradient%3E%3Cfilter id='r'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.07' numOctaves='2' seed='2'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='18'/%3E%3C/filter%3E%3C/defs%3E%3Cellipse cx='52' cy='47' rx='36' ry='30' fill='url(%23g)' filter='url(%23r)'/%3E%3C/svg%3E") bottom 12% right 27% / 104px no-repeat,
+      url("art/bg-bonfire.png") bottom -6px left -16px / clamp(210px, 33vw, 380px) auto no-repeat,
+      url("art/bg-cornfield.png") top 52px right -26px / clamp(190px, 29vw, 350px) auto no-repeat,
+      url("art/bg-lake.png") bottom center / min(1150px, 132%) auto no-repeat,
       radial-gradient(ellipse 320px 220px at 12% 20%, rgba(120,80,40,.10), transparent 70%),
       radial-gradient(ellipse 260px 200px at 88% 72%, rgba(120,80,40,.09), transparent 70%),
       radial-gradient(ellipse 220px 160px at 60% 92%, rgba(120,80,40,.08), transparent 70%),
@@ -376,7 +370,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 27;
+const BUILD = 28;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
