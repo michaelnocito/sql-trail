@@ -46,6 +46,16 @@ The `trail_runs` / `trail_players` tables DO NOT EXIST yet. Mike (or Claude driv
 - 023f Save an email on Journey records → "Filed with the trail boss."
 - 023g Older builds/batches still pending Mike's test per ROADMAP.md (builds 14-22 items).
 
+## Mike's test steps (Batch 8 = task 026, build 27 — ledger + triage round)
+
+- 026a Any decision (travel leg, river, store, doctor, trade, forage, talk, job win, 2nd/3rd miss) pops a consequence card the moment it lands: choice + colored chips (⏳ days, 🌾 food, 💰 $, per-member health).
+- 026b 📒 Ledger icon (top-right during a run; also on the Journey Report) opens the decision history — every choice, its consequence chips, "Net impact of your choices" totals, and current on-hand resources. Safe-but-slow choices visibly list their day cost.
+- 026c Task screen defaults to 👆 Build (guided); ⌨ Type tab says "pro pay (+25%)" and a typed clean solve pays ~25% more than the card's listed reward.
+- 026d First "Talk to folks" in a town gifts a little food + coin (and shows in the ledger); later clicks are gossip only.
+- 026e Travel screen shows the 🧮 Plan-ahead line: legs to the next general store, lbs it will burn, red warning if you're short.
+- 026f Query `SELECT * FROM party` in any job: 2 rows (You, Ada), no morale column.
+- 026g Badges/achievements: parked as Batch 9 in ROADMAP.md (research-first, APK SQL kit badge design as base) — confirm that's the right call.
+
 ## Mike's test steps (Batch 7 = task 025, build 25 — APK-style walkthrough)
 
 - 025a Take any job: story appears ALONE first ("The job"), then "On to the task ▸" shows just the prompt + editor ("The task") — no trail map, no story, no always-on guide.
