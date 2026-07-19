@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 29 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 30 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -27,6 +27,15 @@ Mike's direction: keep only the lake scene; rework its dock to look like railroa
 - Removed `bg-bonfire.png` and `bg-cornfield.png` (files + body::before layers). Only `bg-lake.png` remains as the backdrop.
 - Reworked the dock into railroad tracks: two tapered steel rails (dark body + metal-glint highlight) drawn in perspective at ~30%/70% of the dock width, converging toward the waterline; the existing cross-planks read as ties. Drawn at 2× supersample on the source charcoal, then re-run through the same sepia pipeline. Script: scratchpad/make_rails.py.
 - Reads as the trail heading west into the mountains. 127 tests green; browser-verified.
+
+### Batch 8.7 — Blended corner art (SHIPPED build 30)
+Mike's direction: from the bonfire pic cut out JUST the fire, upper-left, fade the border so it blends in; do the same upper-right with the corn/scarecrow pic.
+- `bg-fire.png` — cropped to the flames + embers only (chairs/ground removed), radial-feathered so the edge dissolves; upper-left.
+- `bg-cornfield.png` — regenerated from the fall sketch with a rectangular edge-feather (all borders fade); upper-right.
+- Both keyed to transparent sepia (#6f4e2e) and added to `body::before` alongside the lake. Feather masks built in numpy (scratchpad/make_corners.py). 127 tests green; browser-verified all three blend borderlessly with the UI clean on top.
+
+### Batch 8.8 — Practice-table consistency (OPEN — needs Mike's call)
+Mike: "results still show all kinds of things; we trimmed the resources down and the table doesn't reflect that." Finding: the engine's resource model IS trimmed (food/coin/health only). The `parts`/`medicine` etc. live in the SQL PRACTICE tables (`supplies`, `fort_inventory`, `ledger`), a separate layer the curriculum queries. Trimming `supplies` to food-only breaks ~12 graded lessons (DISTINCT category, IN ('parts','medicine'), GROUP BY/HAVING category, several fort_inventory joins, NOT IN, SUM(CASE) per category). Awaiting Mike's direction before touching curriculum — see chat for options.
 
 ### Roguelite reboot (SHIPPED build 21, awaiting Mike's test)
 Mike's direction: too many resources; make it roguelite — at each town, choose between 3 query "cards" (rogue-lite draft), each a funny story tie-in.

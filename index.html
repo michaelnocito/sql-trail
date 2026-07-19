@@ -86,14 +86,17 @@
     background: var(--brown-dark); border: none; color: #fff8ec; border-radius: 8px;
     padding: 10px 18px; display: none; max-width: 90vw; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
 
-  /* --- Aged-paper backdrop (Michael Nocito original drawing) ---
-     A single faint sepia-keyed charcoal sits behind the cards: the lake scene,
-     its dock reworked into railroad tracks so it reads as the trail heading west
-     into the mountains. Paper glow + grain remain. On body::before, under all
-     content, anchored to the bottom so it never intrudes on the UI. --- */
+  /* --- Aged-paper backdrop (Michael Nocito original drawings) ---
+     Three faint sepia-keyed drawings sit behind the cards, all edge-feathered so
+     no border shows: the lake scene (dock reworked into railroad tracks) as the
+     trail's horizon along the bottom; the bonfire flames blended into the upper-
+     left; the corn + scarecrows blended into the upper-right. Paper glow + grain
+     remain. On body::before, under all content, kept out of the UI's way. --- */
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .8;
     background:
+      url("art/bg-fire.png") top -14px left -8px / clamp(120px, 15vw, 190px) auto no-repeat,
+      url("art/bg-cornfield.png") top -18px right -20px / clamp(190px, 28vw, 340px) auto no-repeat,
       url("art/bg-lake.png") bottom center / min(1150px, 132%) auto no-repeat,
       radial-gradient(ellipse 320px 220px at 12% 20%, rgba(120,80,40,.10), transparent 70%),
       radial-gradient(ellipse 260px 200px at 88% 72%, rgba(120,80,40,.09), transparent 70%),
@@ -368,7 +371,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 29;
+const BUILD = 30;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
