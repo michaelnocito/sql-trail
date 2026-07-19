@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 21 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 22 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -53,32 +53,23 @@ Mike: 5 questions per stop was too many; hint 3 should just paste.
 - Hint 3 auto-pastes the canonical answer into the editor; Copy/Paste buttons removed.
 - Watch item: stop rewards were tuned for 5 questions — with 3, food income per stop drops ~40%; check survivability in Mike's next full run.
 
-### Batch 3 — Curriculum depth
-- Stop 5: subqueries + CTEs (3 questions)
-- Stop 6: CASE + conditional aggregation (3 questions)
-- Stop 7: window functions (3 questions)
+### Batches 3+4+6+7(partial) — Full trail + analyst layer (SHIPPED build 22, awaiting Mike's test)
+"All remaining build items" pass, 2026-07-19. Everything client-side shipped:
+- **Card tiers 5-9** (4 cards each, funny stories): subqueries (tier 5, subquery-style canonical answers — tap-building WITH/CTEs is miserable; CTE mentioned in concept label), CASE + conditional agg (6), window functions (7), date & string via new `ledger` table with 1848 dates (8), capstone multi-concept (9). TOWN_TIER now 1-9; gray-box GONE — full trail to Oregon, victory report + celebration at town 9.
+- **Builder vocabulary extended**: NOT IN, LIKE, BETWEEN, CASE/WHEN/THEN/ELSE/END, OVER, PARTITION BY; funcs ROW_NUMBER()/RANK() OVER (, STRFTIME(, UPPER(, LOWER(, LENGTH(, SUBSTR(.
+- **Town extras screen** after each job: fort general store (towns 2/4/7: food by the $ at rising prices, doctor +25 health), seeded trader offers (towns 3/6, accept/decline), forage minigame (any town, once: easy query against a 60s clock, lbs scale with time left; graded vs SEED+FORAGE schema).
+- **Burn-rate readout** on the travel screen (lbs/leg + legs of food at current pace/rations).
+- **Talk to folks** on the job board: seeded gossip lines (10-line pool, cycles per click).
+- **Share card**: canvas 1200×630 PNG download on the Journey Report (original line-art wagon, score/days/health, URL).
+- 109 tests green; browser-verified scripted 9-town run (rivers 2/5/8 ferry, store buy, trades, forage wins, victory report, no console errors). GAME_VERSION 0.3.0.
+- Note: forage minigame is TYPE-mode only for now (no tap pad); fine on desktop, revisit for mobile if Mike flags it.
 
-### Batch 4 — Finish the trail
-- Stop 8: date & string functions (3 questions)
-- Stop 9: capstone (one scenario, 3 chained questions)
-- Full-trail run end to end; tombstone/report flows at real length
-
-### Batch 5 — Persistence + accounts
+### Batch 5 — Persistence + social (REMAINING — needs Supabase keys, own chat)
 - Supabase run storage (reuse Analyst Prep Kit project + supabase_auth_sync.js)
 - Dual auth: recovery code (OXEN-RIVER-1847 style) + optional email
 - Journey Report trend charts across runs
-
-### Batch 6 — Analyst-thinking layer
-- Burn-rate dashboard UI at forts
-- Fort general-store buying screens (money loop)
-- Forage minigame (timed easy queries, carry cap)
-- Seeded trader encounter (swap resources)
-
-### Batch 7 — Social + ship
 - Global leaderboard (Supabase)
-- Share cards (canvas PNG, LinkedIn-sized)
-- Talk-to-people flavor lines at stops
-- Final CRT polish pass
+- Final CRT polish pass (fold into this batch)
 
 ## Shelved: SQL General Store (future spin-off game)
 
