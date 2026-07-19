@@ -46,6 +46,14 @@ The `trail_runs` / `trail_players` tables DO NOT EXIST yet. Mike (or Claude driv
 - 023f Save an email on Journey records → "Filed with the trail boss."
 - 023g Older builds/batches still pending Mike's test per ROADMAP.md (builds 14-22 items).
 
+## Mike's test steps (Batch 7 = task 025, build 25 — APK-style walkthrough)
+
+- 025a Take any job: story appears ALONE first ("The job"), then "On to the task ▸" shows just the prompt + editor ("The task") — no trail map, no story, no always-on guide.
+- 025b 📖 Trail Guide button toggles the concept blurb; "◂ Re-read the job" goes back to the story.
+- 025c Solve a card: the win celebration + results grid open on their OWN payout card with Continue — nothing appended under the editor.
+- 025d Miss once or twice: the funny helpline still appears inline on the task screen so you can retry without losing your query.
+- 025e Step line "The job · The task · The payout" highlights where you are.
+
 ## Mike's test steps (Batch 6 = task 024)
 
 - 024a Outfitter shows two members (Leader + Partner); statbar shows two named health bars.

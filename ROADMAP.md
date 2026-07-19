@@ -82,6 +82,15 @@ Mike's direction 2026-07-19: party of TWO with health tied to members (split), i
 - **Review card drafts**: town 1 = 3 fresh tier-1 cards; towns 2-9 = 2 fresh cards at the town's tier + 1 seeded auto-pick from the previous town's three (recursive, deterministic), tagged 🔁 Review on the job board and card screen. Reinforces prior concepts; pays its own (lower-tier) reward.
 - Statbar shows both members' named health bars (✝ strikethrough when dead). GAME_VERSION → 0.4.0 (new seeds + new leaderboard era). 125 tests green (10 new party tests replace the shared-bar death test).
 
+### Batch 7 — APK-style single-screen walkthrough (SHIPPED build 25, awaiting Mike's test)
+Mike's direction 2026-07-19: make town jobs read like Analyst Prep Kit lessons — single-screen steps that keep focus on the question, with animations/results on their own card, instead of everything stacked on one page.
+- Job flow is now a 3-step walkthrough with a step line (The job · The task · The payout):
+  1. **The job** — story card alone (badge, story, pay). "On to the task ▸".
+  2. **The task** — just the 🎯 prompt, editor/build pad, schema strip, Execute. Trail map gone from this screen; Trail Guide moved behind a 📖 toggle; "◂ Re-read the job" link back. Misses 1-2 stay inline here so the retry loop is uninterrupted.
+  3. **The payout** — wins, the handed-over 3rd-miss run, and their celebrations land on their OWN card (headline + results grid + Continue), no scrolling under the editor.
+- Job board and forage screens dropped the trail map too (statbar stays everywhere — resources are always visible). Map still lives on travel/arrival/river/extras screens where geography matters.
+- Presentation only — grading, rewards, escalating help, and seeds untouched. GAME_VERSION stays 0.4.0. 125 tests green.
+
 ## Shelved: SQL General Store (future spin-off game)
 
 All writing — DDL (CREATE/ALTER/DROP) **and** DML (INSERT/UPDATE/DELETE) — is out of SQL Trail's curriculum. SQL Trail is a pure query game: reading data is the interview skill, and it keeps the difficulty ramp honest. Writing gets its own advanced game. Concept: **run your general store on the trail**. You open a trading post at a fort and build the business from an empty database: design the schema (CREATE TABLE, keys, constraints), stock inventory (INSERT), run the shop day to day (UPDATE prices, DELETE spoilage, purchase orders, sales, restocks), and read your own books to survive the season. Covers DDL, DML, constraints and keys, indexes, transactions, and the inventory/orders patterns interviews love. Shares the SQL Trail engine, editor (the grader's write-statement support is already built and tested), and Object Explorer.

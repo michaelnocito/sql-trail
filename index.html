@@ -332,7 +332,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 24;
+const BUILD = 25;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -826,7 +826,7 @@ function screenDraft() {
   const cards = drawCards(run.stop);
   run._draft = cards;
   app.innerHTML = `
-    ${trailMap()}${statbar()}
+    ${statbar()}
     <h2>${esc(stop.name)} — the job board</h2>
     ${stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
     <div class="objective"><span class="tag">Choose one</span>Three jobs are posted. Take one — the other two ride off with somebody else.${run.stop > 1 ? ' The 🔁 Review job is easier pay from the last town — good for checking yourself on ground you\'ve covered.' : ''}</div>
@@ -843,22 +843,47 @@ function screenDraft() {
     <div id="talkOut"></div>`;
 }
 
+// ---------- job walkthrough: APK-lesson-style single-screen steps ----------
+// One focused card per screen — The job (story) → The task (query) → The payout
+// (result). No trail map or guide clutter on the task; animations/celebrations
+// land on their own card.
+function jobSteps(cur) {
+  const steps = ['The job', 'The task', 'The payout'];
+  const i = steps.indexOf(cur);
+  return `<p class="nextstep center" style="margin:6px 0 2px">
+    ${steps.map((s, k) => k === i ? `<b class="amber">${s}</b>` : `<span class="dim">${s}</span>`).join(' <span class="dim">·</span> ')}
+  </p>`;
+}
+
 function startCard(i) {
   qState = { card: run._draft[i], misses: 0, startedAt: Date.now(), resolved: false, townId: run.stop };
   buildTokens = [];
-  screenCard();
+  screenCardStory();
 }
 
-function screenCard() {
+// Step 1 — the story, on its own card so the reading happens before the SQL.
+function screenCardStory() {
   const stop = C.STOPS[run.stop - 1];
   const q = qState.card;
   app.innerHTML = `
-    ${trailMap()}${statbar()}
+    ${statbar()}
+    ${jobSteps('The job')}
     <h2>${esc(stop.name)} — ${esc(q.title)}</h2>
     <div class="panel">
       <div><span class="badge">${esc(q.concept)}</span>${q.review ? ' <span class="badge" style="background:var(--brown-dark);color:#fff8ec">🔁 Review</span>' : ''} ${dpips(q.tier)}
         <span class="dim" style="float:right">Pays 🌾 ${q.reward.food} · 💰 $${q.reward.coin}</span></div>
-      <p class="story" style="margin:8px 0">${esc(q.story)}</p>
+      <p class="story" style="font-size:1.05em;margin:12px 0">${esc(q.story)}</p>
+    </div>
+    <div class="center"><button class="primary" onclick="screenCard()">On to the task ▸</button></div>`;
+}
+
+// Step 2 — the task. Just the question and the tools to answer it.
+function screenCard() {
+  const q = qState.card;
+  app.innerHTML = `
+    ${statbar()}
+    ${jobSteps('The task')}
+    <div class="panel">
       <div class="objective"><span class="tag">🎯 Your task</span>${esc(q.prompt)}</div>
       <div class="modetabs">
         <button class="${inputMode === 'type' ? 'on' : ''}" onclick="setInputMode('type')">⌨ Type</button>
@@ -872,17 +897,37 @@ function screenCard() {
       ${schemaStripHtml(q)}
       <div>
         <button class="primary" onclick="submitAnswer()">▶ Execute</button>
+        <button onclick="toggleGuide()">📖 Trail Guide</button>
+        <button onclick="screenCardStory()" style="float:right">◂ Re-read the job</button>
       </div>
+      <div id="guidePane" style="display:none" class="helpline"><b class="amber">Trail Guide</b> — ${esc(guideBlurb(q.concept))}
+        <div>Study more: <a style="color:var(--amber)" href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Analyst Prep Kit</a></div></div>
       <div class="nextstep" style="margin-top:6px">
         Runs used <span class="trypips" id="trypips">${pipsHtml()}</span>
         &nbsp;·&nbsp; 1st miss is free &nbsp;·&nbsp; 2nd fills in half the code &nbsp;·&nbsp; 3rd hands you the answer
       </div>
       <div id="result"></div>
-    </div>
-    <div class="panel dim"><b class="amber">Trail Guide</b> — ${esc(guideBlurb(stop.concept))}
-      <div>Study more: <a style="color:var(--amber)" href="https://michaelnocito.github.io/analyst-prep-kit/" target="_blank" rel="noopener">Analyst Prep Kit</a></div></div>`;
+    </div>`;
   mountEditor('sqlHost');
   if (inputMode === 'build' && buildTokens.length) editor.setValue(TrailBuilder.assemble(buildTokens));
+}
+function toggleGuide() {
+  const g = document.getElementById('guidePane');
+  if (g) g.style.display = g.style.display === 'none' ? 'block' : 'none';
+}
+
+// Step 3 — the payout, its own card: the celebration + results, nothing else.
+function screenCardResult(headline, bodyHtml) {
+  const q = qState.card;
+  app.innerHTML = `
+    ${statbar()}
+    ${jobSteps('The payout')}
+    <h2>${esc(C.STOPS[run.stop - 1].name)} — ${esc(q.title)}</h2>
+    <div class="panel">
+      <p class="amber" style="font-size:1.08em">${headline}</p>
+      ${bodyHtml}
+      <div class="center" style="margin-top:10px"><button class="primary" onclick="afterCard()">Continue ▸</button></div>
+    </div>`;
 }
 
 // ---------- tap-token builder (Batch 2) ----------
@@ -991,11 +1036,10 @@ function submitAnswer() {
     return;
   }
 
-  // Answer already handed over on the 3rd miss — just show the run.
+  // Answer already handed over on the 3rd miss — show the run on its own card.
   if (qState.resolved) {
-    out.innerHTML = queryOutput(r, q, execMs) +
-      `<p class="amber">That's the one — the trail guide walked you through it.</p>
-       <button class="primary" onclick="afterCard()">Continue ▸</button>`;
+    screenCardResult("That's the one — the trail guide walked you through it.",
+      queryOutput(r, q, execMs));
     return;
   }
 
@@ -1004,9 +1048,8 @@ function submitAnswer() {
   if (r.tier === 'full') {
     const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs);
     celebrate('win'); refreshStat();
-    out.innerHTML = queryOutput(r, q, execMs) +
-      `<p class="amber">${esc(pick(WIN_LINES))} You earned 🌾 ${reward.food} lbs and 💰 $${reward.coin}.</p>
-       <button class="primary" onclick="afterCard()">Continue ▸</button>`;
+    screenCardResult(`${esc(pick(WIN_LINES))} You earned 🌾 ${reward.food} lbs and 💰 $${reward.coin}.`,
+      queryOutput(r, q, execMs));
     return;
   }
 
@@ -1149,7 +1192,7 @@ function screenForage() {
   forageCard = C.FORAGE_CARDS[Math.floor(rand() * C.FORAGE_CARDS.length)];
   forageLeft = 60;
   app.innerHTML = `
-    ${trailMap()}${statbar()}
+    ${statbar()}
     <h2>🌿 Foraging — ${esc(forageCard.title)}</h2>
     <div class="panel">
       <p class="dim">Light's fading. One easy query, ${forageCard.baseFood} lbs on the line — the faster you run it, the more you carry home.</p>
