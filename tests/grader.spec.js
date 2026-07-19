@@ -114,6 +114,10 @@ function check(name, cond, detail) {
   check('two misses halve the reward', helped.food === 20 && helped.coin === 5);
   const missed = Engine.recordAnswer(run, 1, card, 'fail', 3, 5000);
   check('an unsolved card pays nothing', missed.food === 0 && missed.coin === 0);
+  const typedClean = Engine.recordAnswer(run, 1, card, 'full', 0, 5000, 'type');
+  check('typing pays a 25% premium', typedClean.food === 50 && typedClean.coin === 13);
+  const typedMiss = Engine.recordAnswer(run, 1, card, 'full', 2, 5000, 'type');
+  check('typed misses sting less (15% each)', typedMiss.food === 38 && typedMiss.coin === 10);
 
   console.log('two-member party (individual health)');
   const duo = Engine.newRun(Content, ['A','B','C','D'], { food: 30 });

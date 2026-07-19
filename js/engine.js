@@ -169,12 +169,14 @@
     return event;
   }
 
-  // Roguelite reward: FULL credit pays the card's bounty, reduced 25% per miss.
-  // Anything short of full pays nothing (the escalating-help penalties already bit).
-  function recordAnswer(run, townId, card, tier, misses, timeMs) {
+  // Roguelite reward: FULL credit pays the card's bounty, reduced per miss.
+  // Typing it yourself pays a 25% premium and misses sting less (15% vs 25%) —
+  // the tap-builder is the guided road, the keyboard is the pro road.
+  function recordAnswer(run, townId, card, tier, misses, timeMs, mode) {
     let food = 0, coin = 0, score = 0;
     if (tier === 'full') {
-      const mult = Math.max(0, 1 - 0.25 * misses);
+      const typed = mode === 'type';
+      const mult = Math.max(0, (typed ? 1.25 : 1) - (typed ? 0.15 : 0.25) * misses);
       food = Math.round((card.reward.food || 0) * mult);
       coin = Math.round((card.reward.coin || 0) * mult);
       score = 100;

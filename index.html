@@ -316,6 +316,29 @@
   /* CodeMirror wraps lines; kill its native scrollbar chrome entirely */
   .CodeMirror-hscrollbar, .CodeMirror-vscrollbar, .CodeMirror-scrollbar-filler { display: none !important; }
 
+  /* --- Decision ledger + consequence strip --- */
+  .dchip { display: inline-block; border-radius: 999px; padding: 1px 9px; margin: 1px 3px 1px 0;
+    font-size: .85em; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
+  .dchip.pos { background: #e6f0dc; color: #3f6d24; border-color: #c4dcab; }
+  .dchip.neg { background: #f6e0dd; color: #a8322a; border-color: #ecc4bf; }
+  .dchip.day { background: #f3e8cf; color: #8a5a1e; border-color: #e2d5bc; }
+  #conseq {
+    position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%);
+    background: var(--card); border: 1.5px solid var(--brown); border-radius: 10px;
+    padding: 8px 14px; display: none; max-width: 92vw; z-index: 9000;
+    box-shadow: 0 4px 14px rgba(60,45,25,.3); font-size: .95em;
+  }
+  #ledgerBtn {
+    position: fixed; top: 10px; right: 10px; z-index: 8999; display: none;
+    min-height: 40px; padding: 4px 12px; border-radius: 999px;
+    background: var(--card); box-shadow: 0 2px 8px rgba(60,45,25,.25);
+  }
+  #ledgerWrap { position: fixed; inset: 0; z-index: 9500; display: none;
+    background: rgba(40,30,18,.55); overflow: auto; padding: 4vh 12px; }
+  #ledgerWrap .panel { max-width: 860px; margin: 0 auto; }
+  .ledgertbl td, .ledgertbl th { vertical-align: top; }
+  .ledgertbl .lwhat { min-width: 160px; }
+
   /* Desktop: use the window — wider column, larger type, roomier panels.
      Lives LAST in the sheet so its overrides win the specificity ties. */
   @media (min-width: 900px) {
@@ -339,6 +362,9 @@
 <div id="app"><p class="center dim">Loading the trail…</p></div>
 <div id="toast"></div>
 <div id="fx"></div>
+<button id="ledgerBtn" onclick="openLedger()" title="Decision ledger">📒 Ledger</button>
+<div id="conseq"></div>
+<div id="ledgerWrap" onclick="if(event.target===this)closeLedger()"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -350,7 +376,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 26;
+const BUILD = 27;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -578,6 +604,64 @@ function processGraves() {
     fxFlash('rgba(58,47,34,.45)');
   }
 }
+// ---------- decision ledger: every choice, its cost, on the record ----------
+// snapRes() before a decision, ledgerLog() after: the diff is the consequence.
+// Entries surface twice — a consequence strip the moment it happens, and the
+// 📒 Ledger overlay with the full history + running totals.
+function snapRes() {
+  return { day: run.day, food: run.food, coin: run.coin, health: run.party.map(m => m.health) };
+}
+function ledgerLog(icon, label, pre, note) {
+  const d = {
+    days: run.day - pre.day, food: run.food - pre.food, coin: run.coin - pre.coin,
+    health: run.party.map((m, i) => (m.health || 0) - pre.health[i]),
+  };
+  run.ledger = run.ledger || [];
+  run.ledger.push({ day: run.day, icon, label, d, note: note || '' });
+  showConseq(icon, label, d);
+  const btn = document.getElementById('ledgerBtn');
+  if (btn) btn.style.display = 'block';
+}
+function deltaChips(d) {
+  const chips = [];
+  if (d.days) chips.push(`<span class="dchip day">⏳ +${d.days} day${d.days === 1 ? '' : 's'}</span>`);
+  if (d.food) chips.push(`<span class="dchip ${d.food > 0 ? 'pos' : 'neg'}">🌾 ${d.food > 0 ? '+' : ''}${d.food} lbs</span>`);
+  if (d.coin) chips.push(`<span class="dchip ${d.coin > 0 ? 'pos' : 'neg'}">💰 ${d.coin > 0 ? '+' : ''}$${Math.abs(d.coin)}</span>`);
+  d.health.forEach((h, i) => {
+    if (h) chips.push(`<span class="dchip ${h > 0 ? 'pos' : 'neg'}">${h > 0 ? '💊' : '🤕'} ${esc(run.party[i].name)} ${h > 0 ? '+' : ''}${h}</span>`);
+  });
+  return chips.length ? chips.join('') : '<span class="dchip day">no cost</span>';
+}
+function showConseq(icon, label, d) {
+  const el = document.getElementById('conseq');
+  if (!el) return;
+  el.innerHTML = `<b>${icon} ${esc(label)}</b><br>${deltaChips(d)}`;
+  el.style.display = 'block';
+  clearTimeout(el._h); el._h = setTimeout(() => el.style.display = 'none', 5000);
+}
+function openLedger() {
+  if (!run || !run.ledger || !run.ledger.length) { toast('No decisions on the books yet.'); return; }
+  const rows = run.ledger.slice().reverse().map(e => `<tr>
+    <td class="dim">${e.day}</td>
+    <td class="lwhat">${e.icon} ${esc(e.label)}${e.note ? `<div class="dim" style="font-size:.85em">${esc(e.note)}</div>` : ''}</td>
+    <td>${deltaChips(e.d)}</td></tr>`).join('');
+  const tot = run.ledger.reduce((t, e) => ({
+    days: t.days + e.d.days, food: t.food + e.d.food, coin: t.coin + e.d.coin,
+    health: t.health.map((h, i) => h + (e.d.health[i] || 0)),
+  }), { days: 0, food: 0, coin: 0, health: run.party.map(() => 0) });
+  document.getElementById('ledgerWrap').innerHTML = `
+    <div class="panel">
+      <h2 style="margin-top:0">📒 Decision ledger</h2>
+      <p class="dim">Every choice you made and what it actually cost — the analyst's habit: decisions are cheap, consequences compound.</p>
+      <div class="panel" style="margin:8px 0"><b>Net impact of your choices</b><br>${deltaChips(tot)}
+        <div class="dim" style="margin-top:4px">On hand now: 🌾 ${run.food} lbs · 💰 $${run.coin} · ${run.party.map(m => `${esc(m.name)} ${m.dead ? '✝' : m.health}`).join(' · ')} · day ${run.day}</div></div>
+      <table class="ledgertbl"><tr><th>Day</th><th>Decision</th><th>Consequence</th></tr>${rows}</table>
+      <div class="center"><button class="primary" onclick="closeLedger()">Back to the trail ▸</button></div>
+    </div>`;
+  document.getElementById('ledgerWrap').style.display = 'block';
+}
+function closeLedger() { document.getElementById('ledgerWrap').style.display = 'none'; }
+
 // Graves from PREVIOUS runs near this town — the classic "you pass a grave".
 function pastGravesHtml(stop) {
   const old = loadGraves().filter(g => g.stop === stop && (!run.startedAt || g.at < run.startedAt)).slice(-2);
@@ -623,6 +707,8 @@ function trailMap() {
 // ---------- screens ----------
 
 function screenTitle() {
+  const lb = document.getElementById('ledgerBtn');
+  if (lb) lb.style.display = 'none';
   app.innerHTML = `
     <h1 class="center">S Q L &nbsp; T R A I L</h1>
     <div class="panel crt center">
@@ -675,6 +761,10 @@ function startRun() {
   try { run = E.newRun(C, names, alloc); }
   catch (e) { toast(e.message); return; }
   run.startedAt = Date.now();
+  run.ledger = [{ day: 0, icon: '🧾', label: `Outfitting — $${alloc.food} to food, $${run.coin} kept as coin`,
+    d: { days: 0, food: run.food, coin: -alloc.food, health: run.party.map(() => 0) }, note: '' }];
+  const lb = document.getElementById('ledgerBtn');
+  if (lb) lb.style.display = 'block';
   screenTravel();
 }
 
@@ -689,6 +779,7 @@ function screenTravel() {
         <div><label>Rations</label>${sel('rations', Object.keys(E.RATIONS), run.rations)}</div>
       </div>
       <p class="dim" style="margin:8px 0 0">📊 Burn rate: ~${E.burnRate(run).lbsPerLeg} lbs per leg at these settings — about <b class="amber">${E.burnRate(run).legsOfFood}</b> legs of food aboard.</p>
+      ${forecastHtml()}
     </div>
     <p class="nextstep center">Pick a pace and rations (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
     <div class="center"><button class="primary" onclick="doTravel()">Continue on trail ▸</button></div>
@@ -699,6 +790,20 @@ function screenTravel() {
   }
 }
 
+// Forecast helper: the baseline numbers an analyst needs to project ahead —
+// what a leg costs at these settings, and what it takes to reach resupply.
+function forecastHtml() {
+  const br = E.burnRate(run);
+  const storeTowns = Object.keys(C.STORES).map(Number).filter(t => t > run.stop).sort((a, b) => a - b);
+  const nextStore = storeTowns[0];
+  const legsToStore = nextStore ? nextStore - run.stop : null;
+  const need = nextStore ? legsToStore * br.lbsPerLeg : null;
+  const short = need !== null && run.food < need;
+  return `<p class="dim" style="margin:6px 0 0">🧮 Plan ahead: ${nextStore
+    ? `next general store is <b>town ${nextStore}</b> (${legsToStore} leg${legsToStore === 1 ? '' : 's'} away) — reaching it burns ~<b class="${short ? 'red' : 'amber'}">${need} lbs</b>${short ? ` and you're carrying ${run.food}. Earn food at jobs, forage, or slow the burn.` : `; you're carrying ${run.food}.`}`
+    : `no general stores left before Oregon (${9 - run.stop} leg${9 - run.stop === 1 ? '' : 's'} to go, ~<b class="amber">${(9 - run.stop) * br.lbsPerLeg} lbs</b> of burn).`}</p>`;
+}
+
 function logPanel() {
   if (!run.log.length) return '';
   return `<div class="panel"><b class="amber">Trail log</b>${run.log.slice(-6).map(l =>
@@ -707,7 +812,9 @@ function logPanel() {
 
 function doTravel() {
   const pre = { day: run.day, food: run.food, logLen: run.log.length };
-  E.travelLeg(run);
+  const snap = snapRes();
+  const ev = E.travelLeg(run);
+  ledgerLog('🐂', `Travel leg — ${run.pace} pace, ${run.rations} rations`, snap, ev ? ev.text : '');
   screenTravelAnim(pre);
 }
 
@@ -735,8 +842,10 @@ function screenRiver() {
 }
 function doCross(choice) {
   const river = C.RIVERS[run.stop];
+  const snap = snapRes();
   const r = E.crossRiver(run, run.stop, choice, river);
   if (!r.ok) { toast(r.text); return; }
+  ledgerLog('🌊', `${river.name} — chose ${choice === 'ferry' ? 'the ferry (safe)' : choice === 'caulk' ? 'caulk & float' : 'to ford it'}`, snap, r.text);
   processGraves();
   document.getElementById('riverOut').innerHTML = `
     <p class="amber">${esc(r.text)}</p>
@@ -904,12 +1013,12 @@ function screenCard() {
     <div class="panel">
       <div class="objective"><span class="tag">🎯 Your task</span>${esc(q.prompt)}</div>
       <div class="modetabs">
-        <button class="${inputMode === 'type' ? 'on' : ''}" onclick="setInputMode('type')">⌨ Type</button>
-        <button class="${inputMode === 'build' ? 'on' : ''}" onclick="setInputMode('build')">👆 Build</button>
+        <button class="${inputMode === 'build' ? 'on' : ''}" onclick="setInputMode('build')">👆 Build — guided, tap the tokens</button>
+        <button class="${inputMode === 'type' ? 'on' : ''}" onclick="setInputMode('type')">⌨ Type — pro pay (+25%)</button>
       </div>
       ${inputMode === 'type'
-        ? '<label class="dim" style="font-size:.85em">Ctrl+Space = autocomplete · Ctrl+Enter = run</label>'
-        : '<label class="dim" style="font-size:.85em">Tap tokens to build the query — it assembles in the editor above the pad</label>'}
+        ? '<label class="dim" style="font-size:.85em">Typing it yourself pays 25% more and misses cost less of the reward. Ctrl+Space = autocomplete · Ctrl+Enter = run</label>'
+        : '<label class="dim" style="font-size:.85em">Tap tokens to assemble the query in the editor above. Feeling sharp? Switch to ⌨ Type for +25% pay.</label>'}
       <div id="sqlHost"></div>
       ${inputMode === 'build' ? builderHtml(q) : ''}
       ${schemaStripHtml(q)}
@@ -952,8 +1061,7 @@ function screenCardResult(headline, bodyHtml) {
 // Build mode assembles tokens into the SAME CodeMirror editor, so Execute,
 // grading, hints, and rewards are identical either way. Mobile-first: coarse
 // pointers default to Build; the choice is remembered.
-let inputMode = localStorage.getItem('sql-trail-input-v1')
-  || (matchMedia('(pointer: coarse)').matches ? 'build' : 'type');
+let inputMode = localStorage.getItem('sql-trail-input-v1') || 'build'; // guided Build is home base; Type is the pro road (+25% pay)
 let buildTokens = [];   // tapped tokens for the current question
 let PAD_FLAT = [];      // index → token text, so onclick never fights quoting
 
@@ -1064,7 +1172,9 @@ function submitAnswer() {
   const timeMs = Date.now() - qState.startedAt;
 
   if (r.tier === 'full') {
-    const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs);
+    const snap = snapRes();
+    const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs, inputMode);
+    ledgerLog('💼', `Job: ${q.title} — solved${qState.misses ? ` (${qState.misses} miss${qState.misses === 1 ? '' : 'es'})` : ' clean'}, ${inputMode === 'type' ? '⌨ typed (+25% pay)' : '👆 built'}`, snap);
     celebrate('win'); refreshStat();
     screenCardResult(`${esc(pick(WIN_LINES))} You earned 🌾 ${reward.food} lbs and 💰 $${reward.coin}.`,
       queryOutput(r, q, execMs));
@@ -1085,7 +1195,10 @@ function submitAnswer() {
 
   if (qState.misses === 2) {
     celebrate('miss2');
-    E.applyEffects(run, { health: -10 }); refreshStat();
+    const snap = snapRes();
+    E.applyEffects(run, { health: -10 });
+    ledgerLog('⚠️', `Job: ${qState.card.title} — 2nd miss, half the answer filled in`, snap);
+    refreshStat();
     if (run.dead) { out.innerHTML = queryOutput(r, q, execMs); return screenTombstone(); }
     fillHalf(q);
     out.innerHTML = queryOutput(r, q, execMs) +
@@ -1097,7 +1210,10 @@ function submitAnswer() {
 
   // 3rd miss (or beyond): hand over the answer, biggest penalty, journal it.
   celebrate('miss3');
-  E.applyEffects(run, { health: -18, food: -10 }); refreshStat();
+  const snap3 = snapRes();
+  E.applyEffects(run, { health: -18, food: -10 });
+  ledgerLog('⚠️', `Job: ${qState.card.title} — 3rd miss, answer handed over`, snap3);
+  refreshStat();
   addFollowUp(q);
   E.recordAnswer(run, qState.townId, q, 'fail', qState.misses, timeMs);
   qState.resolved = true;
@@ -1172,14 +1288,16 @@ function storeBuy() {
   const s = C.STORES[run.stop];
   const d = Math.max(0, Math.min(+document.getElementById('buyFood').value || 0, run.coin));
   if (!d) return toast('Enter some dollars first.');
+  const snap = snapRes();
   E.applyEffects(run, { coin: -d, food: Math.floor(d / s.foodPrice) });
-  toast(`Bought ${Math.floor(d / s.foodPrice)} lbs of food.`);
+  ledgerLog('🛒', `General store — bought food at ${Math.round(s.foodPrice * 100)}¢/lb`, snap);
   screenStore();
 }
 function storeDoctor() {
   const s = C.STORES[run.stop];
+  const snap = snapRes();
   E.applyEffects(run, { coin: -s.doctor, health: 25 });
-  toast('The doctor patches everyone up. +25 health.');
+  ledgerLog('🩺', 'Saw the doctor', snap);
   screenStore();
 }
 
@@ -1197,9 +1315,10 @@ function screenTrader() {
     </div>`;
 }
 function acceptTrade() {
+  const snap = snapRes();
   E.applyEffects(run, C.TRADERS[run.stop].effects);
+  ledgerLog('🤝', 'Shook on the trader\'s deal', snap);
   markExtra('trader');
-  toast('Deal done.');
   screenTownExtras();
 }
 
@@ -1245,7 +1364,10 @@ function submitForage() {
     clearInterval(forageTimer);
     markExtra('forage');
     const lbs = Math.max(8, Math.round(forageCard.baseFood * forageLeft / 60));
-    E.applyEffects(run, { food: lbs }); refreshStat();
+    const snap = snapRes();
+    E.applyEffects(run, { food: lbs });
+    ledgerLog('🌿', `Foraged with ${forageLeft}s to spare`, snap);
+    refreshStat();
     celebrate('win');
     out.innerHTML = queryOutput(r, forageCard, 1) +
       `<p class="amber">${esc(pick(WIN_LINES))} You haul back 🌾 ${lbs} lbs.</p>
@@ -1257,13 +1379,26 @@ function submitForage() {
 }
 
 // Seeded gossip: a new line each click, cycling through a per-town shuffle.
+// First chat in each town pays a little — friendly folks share supplies, and
+// the button trains the habit of talking to the locals.
 function talkToFolks() {
   run._talkN = (run._talkN || 0) + 1;
   const rand = TrailRNG.fromVersion(run.version + ':talk:' + run.stop);
   const start = Math.floor(rand() * C.TOWN_TALK.length);
   const line = C.TOWN_TALK[(start + run._talkN - 1) % C.TOWN_TALK.length];
+  let gift = '';
+  if (!extraDone('talk')) {
+    markExtra('talk');
+    const g = TrailRNG.fromVersion(run.version + ':talkgift:' + run.stop);
+    const food = 3 + Math.floor(g() * 5), coin = 1 + Math.floor(g() * 3);
+    const snap = snapRes();
+    E.applyEffects(run, { food, coin });
+    ledgerLog('🗣', 'Talked to the townsfolk', snap);
+    refreshStat();
+    gift = `<div class="dim">They liked the company — sent you off with 🌾 ${food} lbs and 💰 $${coin}.</div>`;
+  }
   const el = document.getElementById('talkOut');
-  if (el) el.innerHTML = `<div class="helpline">🗣 ${esc(line)}</div>`;
+  if (el) el.innerHTML = `<div class="helpline">🗣 ${esc(line)}${gift}</div>`;
 }
 
 // Real-world query editor output: Results grid + Messages tab.
@@ -1387,6 +1522,7 @@ function screenReport(finished) {
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
       <button onclick="downloadShareCard(${finished})">📷 Share card (PNG)</button>
+      <button onclick="openLedger()">📒 Decision ledger</button>
       <button onclick="screenBoard()">🏆 Leaderboard</button>
       <button onclick="screenHistory()">Journey records</button>
       <button onclick="screenTitle()">Title</button>

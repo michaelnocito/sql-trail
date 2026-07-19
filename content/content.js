@@ -30,14 +30,11 @@ CREATE TABLE party (
   member_id INTEGER PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
-  health INTEGER NOT NULL,
-  morale INTEGER NOT NULL
+  health INTEGER NOT NULL
 );
 INSERT INTO party VALUES
- (1,'You','leader',100,80),
- (2,'Ada','scout',95,85),
- (3,'Edgar','cook',90,70),
- (4,'Codd','navigator',100,90);
+ (1,'You','leader',100),
+ (2,'Ada','scout',95);
 
 CREATE TABLE fort_inventory (
   sku INTEGER PRIMARY KEY,

@@ -92,6 +92,18 @@ Mike's direction 2026-07-19: make town jobs read like Analyst Prep Kit lessons �
 - Presentation only — grading, rewards, escalating help, and seeds untouched. GAME_VERSION stays 0.4.0. 125 tests green.
 - **Build 26 follow-up (Mike's screenshot feedback):** desktop was a skinny 760px column with small type in a wide window. ≥900px now gets a 1020px column, 18px base type, bigger headings/buttons/panels, 17px editor, 200px health bars, taller results pane. Mobile untouched (14px rules unchanged). The override block lives LAST in the stylesheet on purpose — earlier it lost specificity ties to base rules.
 
+### Batch 8 — Decision ledger + 07-19 playtest triage (SHIPPED build 27, awaiting Mike's test)
+Mike's direction: consequences must be visible the moment they happen, and a 📒 ledger icon opens the full history of decisions → consequences → net impact. Plus triage of the 5 playtest-tracker inbox items (same day).
+- **Consequence strip**: every decision (travel leg, river choice, store buy, doctor, trade, forage, talk, job reward, 2nd/3rd-miss penalties, outfitting) pops a card the moment it lands: what you chose + colored delta chips (⏳ days, 🌾 food, 💰 coin, per-member 🤕/💊 health).
+- **📒 Decision ledger**: floating icon during a run (and a Journey Report button) opens the overlay — every decision with its chips, plus a "Net impact of your choices" totals row and current on-hand resources. Safe-but-slow choices now visibly cost days.
+- Triage (playtest inbox, all 5 decided):
+  1. Build/Type confusion → **fixed**: Build is the default for everyone, tabs relabeled ("👆 Build — guided" / "⌨ Type — pro pay (+25%)"), typing pays 25% more and misses cut the reward 15% instead of 25% (engine recordAnswer mode param).
+  2. Talk-to-folks should pay → **fixed**: first chat per town gifts seeded 🌾3-7 + 💰$1-3, logged in the ledger.
+  3. Badge/achievement system → **roadmap** (Batch 9 candidate): needs the research-first pass; reuse the APK SQL kit badge design as the base.
+  4. Resource forecasting → **fixed**: travel screen "🧮 Plan ahead" line — legs to the next general store, lbs it will burn at current settings, red warning when you're short. Ledger totals feed the same habit.
+  5. Stale results tables → **fixed**: seed `party` table now matches the game (2 members, no morale column; Edgar/Codd rows gone). `supplies` keeps parts/medicine rows deliberately — store stock is world data and DISTINCT/category questions need it.
+- 127 tests (2 new for the type premium). GAME_VERSION stays 0.4.0 (rewards changed slightly but seeds/curriculum did not; revisit if leaderboard fairness bothers anyone).
+
 ## Shelved: SQL General Store (future spin-off game)
 
 All writing — DDL (CREATE/ALTER/DROP) **and** DML (INSERT/UPDATE/DELETE) — is out of SQL Trail's curriculum. SQL Trail is a pure query game: reading data is the interview skill, and it keeps the difficulty ramp honest. Writing gets its own advanced game. Concept: **run your general store on the trail**. You open a trading post at a fort and build the business from an empty database: design the schema (CREATE TABLE, keys, constraints), stock inventory (INSERT), run the shop day to day (UPDATE prices, DELETE spoilage, purchase orders, sales, restocks), and read your own books to survive the season. Covers DDL, DML, constraints and keys, indexes, transactions, and the inventory/orders patterns interviews love. Shares the SQL Trail engine, editor (the grader's write-statement support is already built and tested), and Object Explorer.
