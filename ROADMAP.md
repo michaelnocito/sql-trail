@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 30 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 31 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -34,8 +34,11 @@ Mike's direction: from the bonfire pic cut out JUST the fire, upper-left, fade t
 - `bg-cornfield.png` — regenerated from the fall sketch with a rectangular edge-feather (all borders fade); upper-right.
 - Both keyed to transparent sepia (#6f4e2e) and added to `body::before` alongside the lake. Feather masks built in numpy (scratchpad/make_corners.py). 127 tests green; browser-verified all three blend borderlessly with the UI clean on top.
 
-### Batch 8.8 — Practice-table consistency (OPEN — needs Mike's call)
-Mike: "results still show all kinds of things; we trimmed the resources down and the table doesn't reflect that." Finding: the engine's resource model IS trimmed (food/coin/health only). The `parts`/`medicine` etc. live in the SQL PRACTICE tables (`supplies`, `fort_inventory`, `ledger`), a separate layer the curriculum queries. Trimming `supplies` to food-only breaks ~12 graded lessons (DISTINCT category, IN ('parts','medicine'), GROUP BY/HAVING category, several fort_inventory joins, NOT IN, SUM(CASE) per category). Awaiting Mike's direction before touching curriculum — see chat for options.
+### Batch 8.8 — Practice-table reframe + results visibility (SHIPPED build 31)
+Mike's call: Option 2 — reframe categories, keep every lesson working; plus fix results rows where item text was invisible.
+- Reframe: renamed the practice-table category `parts` → `gear` (broader trail gear; wagons/oxen still fit the fiction), keeping `food` and `medicine` (medicine = the Health resource). 10 quoted `'parts'` literals updated across `supplies`, `fort_inventory`, the `whr-in` question (now `IN ('gear','medicine')`, title "Gear and Potions"), and ITEM_ICONS. Comment updated. All ~12 multi-category lessons still run; item names kept (they're on-theme). Tests are curriculum-agnostic (assert on engine state), 127 green.
+- Visibility bug: the query-results grid lives in `.outpane` (dark #0d0d0b) but inherited the light theme's dark ink text with no cell bg on odd rows → item text was dark-on-dark (invisible); only numeric `.gridnum` cells showed. Added a dark-theme grid treatment (light #d7d3c7 text, amber-on-dark headers, subtle zebra). Verified via live computed styles: text rgb(215,211,199) on pane rgb(13,13,11), all rows legible.
+- Note: engine resource model was already trimmed (food/coin/health); the reframed tables are the OUTFITTER's practice data, a separate layer. If Mike wants item-level reskinning too (beyond the category), that's a follow-up.
 
 ### Roguelite reboot (SHIPPED build 21, awaiting Mike's test)
 Mike's direction: too many resources; make it roguelite — at each town, choose between 3 query "cards" (rogue-lite draft), each a funny story tie-in.

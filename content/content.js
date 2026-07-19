@@ -11,7 +11,7 @@
   const SEED_SQL = `
 CREATE TABLE supplies (
   item TEXT PRIMARY KEY,
-  category TEXT NOT NULL,        -- food | parts | medicine
+  category TEXT NOT NULL,        -- food | gear | medicine
   qty INTEGER NOT NULL,
   unit_cost REAL
 );
@@ -20,9 +20,9 @@ INSERT INTO supplies VALUES
  ('bacon','food',80,0.55),
  ('dried apples','food',40,0.35),
  ('coffee','food',25,0.90),
- ('wagon wheel','parts',3,22.00),
- ('wagon axle','parts',2,18.50),
- ('wagon tongue','parts',1,16.00),
+ ('wagon wheel','gear',3,22.00),
+ ('wagon axle','gear',2,18.50),
+ ('wagon tongue','gear',1,16.00),
  ('medicine kit','medicine',2,12.75),
  ('bandages','medicine',6,1.10);
 
@@ -47,12 +47,12 @@ CREATE TABLE fort_inventory (
 INSERT INTO fort_inventory VALUES
  (1,'Fort Kearny','flour','food',0.25,500),
  (2,'Fort Kearny','bacon','food',0.60,120),
- (3,'Fort Kearny','wagon wheel','parts',25.00,4),
+ (3,'Fort Kearny','wagon wheel','gear',25.00,4),
  (4,'Fort Laramie','flour','food',0.35,300),
  (5,'Fort Laramie','medicine kit','medicine',15.00,3),
- (6,'Fort Laramie','oxen shoe','parts',4.50,20),
+ (6,'Fort Laramie','oxen shoe','gear',4.50,20),
  (7,'Fort Bridger','coffee','food',1.20,40),
- (8,'Fort Bridger','wagon axle','parts',21.00,2),
+ (8,'Fort Bridger','wagon axle','gear',21.00,2),
  (9,'Fort Bridger','bandages','medicine',1.50,25);
 
 CREATE TABLE forts (
@@ -151,10 +151,10 @@ INSERT INTO forage VALUES
       story: "The cook is doing inventory and only trusts you with the food. Item and qty for the 'food' category.",
       prompt: "List item and qty for supplies in the 'food' category only.",
       answer: "SELECT item, qty FROM supplies WHERE category='food'", reward: { food: 30, coin: 6 } },
-    { id: 'whr-in', tier: 2, concept: 'WHERE / ORDER BY', title: 'Parts and Potions',
-      story: "The blacksmith and the doc are arguing over shelf space. Settle it: items whose category is 'parts' or 'medicine'. Use IN before they draw.",
-      prompt: "List item and category for supplies whose category is 'parts' or 'medicine' — use IN.",
-      answer: "SELECT item, category FROM supplies WHERE category IN ('parts','medicine')", reward: { food: 30, coin: 6 } },
+    { id: 'whr-in', tier: 2, concept: 'WHERE / ORDER BY', title: 'Gear and Potions',
+      story: "The blacksmith and the doc are arguing over shelf space. Settle it: items whose category is 'gear' or 'medicine'. Use IN before they draw.",
+      prompt: "List item and category for supplies whose category is 'gear' or 'medicine' — use IN.",
+      answer: "SELECT item, category FROM supplies WHERE category IN ('gear','medicine')", reward: { food: 30, coin: 6 } },
     { id: 'whr-order', tier: 2, concept: 'WHERE / ORDER BY', title: 'Priciest First', orderMatters: true,
       story: "A trader wants to see what's worth stealing — er, buying — most expensive first. Item and unit_cost, high to low.",
       prompt: 'List item and unit_cost for all supplies, most expensive first.',
@@ -352,7 +352,7 @@ INSERT INTO forage VALUES
     'salt pork': '🥩', 'cornmeal': '🌽', 'lard': '🧈', 'rope': '🪢',
     'wagon wheel': '🛞', 'wagon axle': '⚙️', 'wagon tongue': '🪵', 'oxen shoe': '🐂',
     'medicine kit': '💊', 'bandages': '🩹',
-    'food': '🌾', 'parts': '🔧', 'medicine': '💊',
+    'food': '🌾', 'gear': '🔧', 'medicine': '💊',
     'Fort Kearny': '🏕️', 'Fort Laramie': '🏕️', 'Fort Bridger': '🏕️',
   };
 

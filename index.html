@@ -255,7 +255,10 @@
   .outtabs button.on { color: var(--amber); border-color: var(--amber); background: var(--bg); }
   .outpane { border: 1px solid var(--dim); padding: 8px; background: #0d0d0b;
     max-height: 300px; overflow: auto; }
-  .outpane table { margin: 0; }
+  .outpane table { margin: 0; color: #d7d3c7; }               /* light text on the dark result pane */
+  .outpane th { color: var(--crt-amber); background: #23231c; border-color: #34342a; }
+  .outpane td { border-color: #2b2b22; }
+  .outpane tr:nth-child(even) td { background: rgba(255,255,255,.045); }  /* legible zebra, not light-theme cream */
   .outpane .gridnum { text-align: right; color: #b5cea8; }
   .msgline { font-size: .9em; color: #cccccc; text-shadow: none; font-family: Consolas, monospace; }
   .msgline.err { color: var(--red); }
@@ -371,7 +374,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 30;
+const BUILD = 31;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
