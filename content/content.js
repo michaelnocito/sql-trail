@@ -5,7 +5,7 @@
 (function (root) {
   'use strict';
 
-  const GAME_VERSION = '0.2.0';
+  const GAME_VERSION = '0.3.0';
 
   // Shared world schema seeded fresh for every challenge.
   const SEED_SQL = `
@@ -67,6 +67,28 @@ INSERT INTO forts VALUES
  ('Fort Kearny',300,1848),
  ('Fort Laramie',640,1834),
  ('Fort Bridger',1025,1843);
+
+CREATE TABLE ledger (
+  txn_id INTEGER PRIMARY KEY,
+  txn_date TEXT NOT NULL,        -- ISO dates, 1848 season
+  fort TEXT NOT NULL,
+  item TEXT NOT NULL,
+  kind TEXT NOT NULL,            -- buy | sell
+  amount REAL NOT NULL
+);
+INSERT INTO ledger VALUES
+ (1,'1848-05-04','Fort Kearny','flour','buy',12.50),
+ (2,'1848-05-11','Fort Kearny','bacon','buy',9.00),
+ (3,'1848-05-19','Fort Kearny','rope','sell',4.00),
+ (4,'1848-06-02','Fort Laramie','flour','buy',10.50),
+ (5,'1848-06-09','Fort Laramie','medicine kit','buy',15.00),
+ (6,'1848-06-15','Fort Laramie','dried apples','sell',6.50),
+ (7,'1848-06-27','Fort Laramie','oxen shoe','buy',9.00),
+ (8,'1848-07-08','Fort Bridger','coffee','buy',8.40),
+ (9,'1848-07-16','Fort Bridger','bandages','buy',3.00),
+ (10,'1848-07-23','Fort Bridger','spare canvas','sell',11.00),
+ (11,'1848-08-05','Fort Bridger','wagon axle','buy',21.00),
+ (12,'1848-08-14','Fort Bridger','coffee','sell',5.20);
 `;
 
   // Forage table seeded only for a future forage minigame — ships with version.
@@ -102,8 +124,8 @@ INSERT INTO forage VALUES
     { id: 9, name: 'Willamette Valley', concept: 'Capstone', tier: 9, intro: '' },
   ];
 
-  // Which tier of cards each town drafts. (Towns 5-9 unlock in later batches.)
-  const TOWN_TIER = { 1: 1, 2: 2, 3: 3, 4: 4 };
+  // Which tier of cards each town drafts. Full trail: 9 towns, 9 tiers.
+  const TOWN_TIER = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9 };
 
   // The card pool. Each card: id, tier, concept, title, story (funny tie-in),
   // prompt (the actual task), answer (canonical), orderMatters?, reward {food,coin}.
@@ -180,6 +202,138 @@ INSERT INTO forage VALUES
       story: 'Three ledgers now: your supplies, the fort prices, and how far each fort sits up the trail. Lay out the resupply plan in marching order.',
       prompt: 'For supplies sold at forts, return item, fort, price, and miles. Order by miles up the trail, then by item.',
       answer: 'SELECT s.item, f.fort, f.price, t.miles FROM supplies s JOIN fort_inventory f ON s.item = f.item JOIN forts t ON f.fort = t.fort ORDER BY t.miles, s.item', reward: { food: 50, coin: 12 } },
+
+    // ---- Tier 5: Subqueries + CTEs ----
+    { id: 'sub-avg', tier: 5, concept: 'Subqueries + CTEs', title: 'Fancier Than Average',
+      story: "A dandy in a silk vest wants only the finest goods — anything pricier than the average. He'll pay handsomely for the list.",
+      prompt: 'Return item and unit_cost for supplies costing more than the average unit_cost. Use a subquery for the average.',
+      answer: 'SELECT item, unit_cost FROM supplies WHERE unit_cost > (SELECT AVG(unit_cost) FROM supplies)', reward: { food: 54, coin: 14 } },
+    { id: 'sub-in', tier: 5, concept: 'Subqueries + CTEs', title: 'The Laramie List',
+      story: 'A rider heading to Fort Laramie offers to haul your restock order — but only for things the fort actually sells. Check first.',
+      prompt: 'Return item and qty for supplies whose item appears in fort_inventory at Fort Laramie. Use IN with a subquery.',
+      answer: "SELECT item, qty FROM supplies WHERE item IN (SELECT item FROM fort_inventory WHERE fort = 'Fort Laramie')", reward: { food: 54, coin: 14 } },
+    { id: 'sub-max', tier: 5, concept: 'Subqueries + CTEs', title: 'The Priciest Thing on the Trail',
+      story: "Campfire argument: what's the single most expensive item any fort sells? Settle it with data before someone settles it with fists.",
+      prompt: 'From fort_inventory, return the item, fort, and price of the row with the highest price. Use a subquery for the max.',
+      answer: 'SELECT item, fort, price FROM fort_inventory WHERE price = (SELECT MAX(price) FROM fort_inventory)', reward: { food: 56, coin: 15 } },
+    { id: 'sub-notin', tier: 5, concept: 'Subqueries + CTEs', title: 'Irreplaceable',
+      story: "The insurance man (yes, they had those) will only cover what can't be re-bought on the trail. Find your supplies no fort stocks.",
+      prompt: 'Return the supplies items that appear in NO fort_inventory row. Use NOT IN with a subquery.',
+      answer: 'SELECT item FROM supplies WHERE item NOT IN (SELECT item FROM fort_inventory)', reward: { food: 56, coin: 15 } },
+
+    // ---- Tier 6: CASE + conditional aggregation ----
+    { id: 'case-label', tier: 6, concept: 'CASE + conditional aggregation', title: 'Paint the Barrels',
+      story: "Edgar wants every barrel painted by stock level so he can stop opening them to check: over 50 is 'plenty', over 10 is 'low', the rest 'critical'.",
+      prompt: "Return item, qty, and a CASE column: qty > 50 → 'plenty', qty > 10 → 'low', else 'critical'.",
+      answer: "SELECT item, qty, CASE WHEN qty > 50 THEN 'plenty' WHEN qty > 10 THEN 'low' ELSE 'critical' END AS stock_level FROM supplies", reward: { food: 60, coin: 16 } },
+    { id: 'case-price', tier: 6, concept: 'CASE + conditional aggregation', title: 'Dear or Fair',
+      story: "A newspaperman is writing an exposé on fort prices. Tag every fort item 'dear' if it costs over 10 dollars, 'fair' otherwise.",
+      prompt: "From fort_inventory, return item, price, and a CASE column: price > 10 → 'dear', else 'fair'.",
+      answer: "SELECT item, price, CASE WHEN price > 10 THEN 'dear' ELSE 'fair' END AS verdict FROM fort_inventory", reward: { food: 60, coin: 16 } },
+    { id: 'case-count', tier: 6, concept: 'CASE + conditional aggregation', title: 'Count the Big Piles',
+      story: 'The quartermaster wants one row per category with a count of items over 30 qty — conditional counting, the analyst party trick.',
+      prompt: 'Per category, count items with qty > 30. Return category and the count. Use SUM(CASE ...).',
+      answer: 'SELECT category, SUM(CASE WHEN qty > 30 THEN 1 ELSE 0 END) AS big_items FROM supplies GROUP BY category', reward: { food: 62, coin: 17 } },
+    { id: 'case-net', tier: 6, concept: 'CASE + conditional aggregation', title: 'The Fort Books',
+      story: "Each fort's ledger mixes buys and sells. The banker wants ONE net number per fort: sells count positive, buys negative.",
+      prompt: "From ledger, return fort and the net amount (sell = +amount, buy = −amount) per fort. Use SUM(CASE ...).",
+      answer: "SELECT fort, SUM(CASE WHEN kind = 'sell' THEN amount ELSE -amount END) AS net FROM ledger GROUP BY fort", reward: { food: 64, coin: 18 } },
+
+    // ---- Tier 7: Window functions ----
+    { id: 'win-rank', tier: 7, concept: 'Window functions', title: 'The Price Podium',
+      story: 'The forts are holding an unofficial "most outrageous price" contest. Rank every fort item by price, highest first, without losing any rows.',
+      prompt: 'From fort_inventory, return item, price, and a RANK() over price descending (name it price_rank).',
+      answer: 'SELECT item, price, RANK() OVER (ORDER BY price DESC) AS price_rank FROM fort_inventory', reward: { food: 66, coin: 18 } },
+    { id: 'win-part', tier: 7, concept: 'Window functions', title: 'Best in Each Fort',
+      story: 'Every fort claims its own top-shelf item. Number the items WITHIN each fort by price so #1 in each fort is obvious.',
+      prompt: 'From fort_inventory, return fort, item, price, and ROW_NUMBER() partitioned by fort, ordered by price descending (name it rn).',
+      answer: 'SELECT fort, item, price, ROW_NUMBER() OVER (PARTITION BY fort ORDER BY price DESC) AS rn FROM fort_inventory', reward: { food: 68, coin: 19 } },
+    { id: 'win-run', tier: 7, concept: 'Window functions', title: 'The Running Tab',
+      story: "The season's spending crept up on everybody. Show each ledger date and amount with the running total so far — the line that makes bankers sweat.",
+      prompt: 'From ledger, return txn_date, amount, and a running SUM of amount ordered by txn_date (name it running_total).',
+      answer: 'SELECT txn_date, amount, SUM(amount) OVER (ORDER BY txn_date) AS running_total FROM ledger', reward: { food: 68, coin: 19 } },
+    { id: 'win-avg', tier: 7, concept: 'Window functions', title: 'Above the House Average',
+      story: "Is that flour a ripoff FOR THAT FORT? Show each item's price beside its own fort's average price so anyone can compare at a glance.",
+      prompt: "From fort_inventory, return fort, item, price, and AVG(price) over the fort's rows (name it fort_avg).",
+      answer: 'SELECT fort, item, price, AVG(price) OVER (PARTITION BY fort) AS fort_avg FROM fort_inventory', reward: { food: 70, coin: 20 } },
+
+    // ---- Tier 8: Date & string functions ----
+    { id: 'date-month', tier: 8, concept: 'Date & string functions', title: 'The Monthly Reckoning',
+      story: "Winter's coming and the banker wants the ledger by month, not by squint. Total the amounts per month of txn_date.",
+      prompt: "From ledger, return the month (strftime('%m', txn_date)) and SUM(amount) per month.",
+      answer: "SELECT strftime('%m', txn_date) AS month, SUM(amount) FROM ledger GROUP BY strftime('%m', txn_date)", reward: { food: 72, coin: 20 } },
+    { id: 'date-range', tier: 8, concept: 'Date & string functions', title: 'The Summer Audit',
+      story: 'An auditor with impressive sideburns only cares about June and July. Pull the ledger rows in that window.',
+      prompt: "From ledger, return txn_date, item, and amount for dates BETWEEN '1848-06-01' AND '1848-07-31'.",
+      answer: "SELECT txn_date, item, amount FROM ledger WHERE txn_date BETWEEN '1848-06-01' AND '1848-07-31'", reward: { food: 72, coin: 20 } },
+    { id: 'str-upper', tier: 8, concept: 'Date & string functions', title: 'Stencil the Crates',
+      story: 'New crate stencils only come in capital letters. Print every supply item in UPPER case with its qty so the painter can get to work.',
+      prompt: 'From supplies, return UPPER(item) (name it label) and qty.',
+      answer: 'SELECT UPPER(item) AS label, qty FROM supplies', reward: { food: 74, coin: 21 } },
+    { id: 'str-like', tier: 8, concept: 'Date & string functions', title: 'Anything Wagon',
+      story: "The wheelwright will fix 'anything with wagon in the name.' Hold him to it — find every supply item containing 'wagon'.",
+      prompt: "From supplies, return the items whose name contains 'wagon'. Use LIKE.",
+      answer: "SELECT item FROM supplies WHERE item LIKE '%wagon%'", reward: { food: 74, coin: 21 } },
+
+    // ---- Tier 9: Capstone (multi-concept business questions) ----
+    { id: 'cap-monthly', tier: 9, concept: 'Capstone', title: 'The Season in One Table',
+      story: "The wagon company's investors want the whole season: net money per month (sells positive, buys negative). One query, one table, no excuses.",
+      prompt: "From ledger, return the month (strftime('%m', txn_date)) and the net amount (sell = +, buy = −) per month.",
+      answer: "SELECT strftime('%m', txn_date) AS month, SUM(CASE WHEN kind = 'sell' THEN amount ELSE -amount END) AS net FROM ledger GROUP BY strftime('%m', txn_date)", reward: { food: 80, coin: 25 } },
+    { id: 'cap-top', tier: 9, concept: 'Capstone', title: 'Every Fort’s Crown Jewel',
+      story: 'One item per fort: the most expensive thing it sells. The trick is keeping just the #1 row from each fort — windows inside a subquery.',
+      prompt: 'From fort_inventory, return fort, item, price for the single priciest item per fort. Use ROW_NUMBER() in a subquery and keep rn = 1.',
+      answer: 'SELECT fort, item, price FROM (SELECT fort, item, price, ROW_NUMBER() OVER (PARTITION BY fort ORDER BY price DESC) AS rn FROM fort_inventory) WHERE rn = 1', reward: { food: 84, coin: 26 } },
+    { id: 'cap-value', tier: 9, concept: 'Capstone', title: 'Which Forts Matter',
+      story: "HQ will only resupply forts holding serious inventory. Join the ledgers, value each fort's stock (price × stock), and keep the ones over 200 dollars.",
+      prompt: 'Join fort_inventory to forts. Return fort and SUM(price * stock) as inventory_value, only for forts where that sum exceeds 200.',
+      answer: 'SELECT f.fort, SUM(f.price * f.stock) AS inventory_value FROM fort_inventory f JOIN forts t ON f.fort = t.fort GROUP BY f.fort HAVING SUM(f.price * f.stock) > 200', reward: { food: 84, coin: 26 } },
+    { id: 'cap-audit', tier: 9, concept: 'Capstone', title: 'The Final Audit',
+      story: "Before Oregon, one last audit: for every supply a fort sells, show your qty and the best price any fort offers — the buy-list that gets you through winter.",
+      prompt: 'For supplies that appear in fort_inventory, return item, qty, and the minimum fort price for that item (name it best_price). Use a correlated subquery.',
+      answer: 'SELECT s.item, s.qty, (SELECT MIN(f.price) FROM fort_inventory f WHERE f.item = s.item) AS best_price FROM supplies s WHERE s.item IN (SELECT item FROM fort_inventory)', reward: { food: 88, coin: 28 } },
+  ];
+
+  // Forage minigame cards: easy, timed, graded against SEED_SQL + FORAGE_SQL.
+  const FORAGE_CARDS = [
+    { id: 'forage-edible', concept: 'Forage', title: 'Safe to Eat',
+      prompt: 'From forage, return plant and lbs for the edible plants (edible = 1).',
+      answer: 'SELECT plant, lbs FROM forage WHERE edible = 1', baseFood: 30 },
+    { id: 'forage-berry', concept: 'Forage', title: 'Berry Run',
+      prompt: "From forage, return the plants that are berries AND edible.",
+      answer: "SELECT plant FROM forage WHERE kind = 'berry' AND edible = 1", baseFood: 30 },
+    { id: 'forage-haul', concept: 'Forage', title: 'Weigh the Haul',
+      prompt: 'From forage, return the total lbs of all edible plants — one number.',
+      answer: 'SELECT SUM(lbs) FROM forage WHERE edible = 1', baseFood: 30 },
+  ];
+
+  // Fort general stores (towns with a fort): food price per lb + doctor visit.
+  const STORES = {
+    2: { foodPrice: 0.35, doctor: 15 },
+    4: { foodPrice: 0.45, doctor: 20 },
+    7: { foodPrice: 0.60, doctor: 25 },
+  };
+
+  // Seeded trader offers at fixed towns: accept or walk away.
+  const TRADERS = {
+    3: { text: 'A trader eyes your flour barrels. "25 lbs of food for $20, friend. My mules eat better than I do."',
+         effects: { food: -25, coin: 20 }, need: { food: 25 } },
+    6: { text: 'A westbound family sells surplus cheap: "35 lbs of food for $15 — the wagon is too heavy for the pass."',
+         effects: { food: 35, coin: -15 }, need: { coin: 15 } },
+  };
+
+  // Talk-to-people flavor lines (seeded pick per town).
+  const TOWN_TALK = [
+    'An old-timer squints at your wagon: "SELECT before you WHERE, and check your food twice."',
+    'The barber claims he once GROUPed BY hat size. Nobody asks him to elaborate.',
+    'A kid runs past yelling that the ferry man cheats. The ferry man agrees, cheerfully.',
+    '"Rained six days straight east of here," says a woman patching canvas. "Cover your flour."',
+    'The blacksmith taps your wheel: "She\'ll hold. Your queries, though — qualify your columns."',
+    'A preacher warns against Cartesian products. His sermon has no ON clause either.',
+    'Two clerks argue whether HAVING comes before ORDER BY. A third quietly wins money on it.',
+    'The general store cat has opinions about your rations. All of them are "more bacon."',
+    '"Trail\'s kinder to folks who read their own ledgers," says a granny knitting by the well.',
+    'A surveyor shows off his map: "Everything joins on something, friend. Everything."',
   ];
 
   // Seeded event pool. Effects are deltas on the three resources (+ days).
@@ -237,6 +391,7 @@ INSERT INTO forage VALUES
 
   const CONTENT = {
     GAME_VERSION, SEED_SQL, FORAGE_SQL, STOPS, TOWN_TIER, CARD_POOL,
+    FORAGE_CARDS, STORES, TRADERS, TOWN_TALK,
     EVENTS, EPITAPHS, ITEM_ICONS, VIGNETTES, RIVERS, DEATH_CAUSES,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = CONTENT;

@@ -148,9 +148,17 @@
     return { food, coin };
   }
 
+  // Burn-rate readout: at the current pace/rations, how many legs of food are
+  // left? The analyst-thinking dashboard number.
+  function burnRate(run) {
+    const perLeg = Math.round(Math.round(LEG_DAYS / PACE[run.pace]) * RATIONS[run.rations]);
+    const legs = perLeg > 0 ? run.food / perLeg : Infinity;
+    return { lbsPerLeg: perLeg, legsOfFood: Math.round(legs * 10) / 10 };
+  }
+
   const Engine = {
     PACE, RATIONS, START, FOOD_PRICE, LEG_DAYS,
-    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause,
+    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else root.TrailEngine = Engine;

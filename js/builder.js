@@ -8,12 +8,14 @@
   // AS is deliberately absent: the grader ignores column aliases, so tap
   // players never need it. Multi-word keywords are single tokens.
   const KEYWORDS = ['SELECT', 'DISTINCT', 'FROM', 'JOIN', 'LEFT JOIN', 'ON',
-    'WHERE', 'AND', 'OR', 'IN', 'IS NULL', 'GROUP BY', 'HAVING',
-    'ORDER BY', 'ASC', 'DESC'];
+    'WHERE', 'AND', 'OR', 'IN', 'NOT IN', 'IS NULL', 'LIKE', 'BETWEEN',
+    'GROUP BY', 'HAVING', 'ORDER BY', 'ASC', 'DESC',
+    'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'OVER', 'PARTITION BY'];
   // Always on the pad so early questions still ask for real recall, not a
   // one-button answer key.
   const CORE = ['SELECT', 'FROM', 'WHERE', 'ORDER BY'];
-  const FUNCS = ['COUNT(*)', 'SUM(', 'MIN(', 'MAX(', 'AVG('];
+  const FUNCS = ['COUNT(*)', 'SUM(', 'MIN(', 'MAX(', 'AVG(',
+    'ROW_NUMBER() OVER (', 'RANK() OVER (', 'STRFTIME(', 'UPPER(', 'LOWER(', 'LENGTH(', 'SUBSTR('];
   const OPS = ['*', ',', '=', '>', '<', '(', ')'];
 
   // Build the token pad for one question.

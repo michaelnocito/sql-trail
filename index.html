@@ -306,7 +306,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 21;
+const BUILD = 22;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -343,7 +343,7 @@ let SEED_SCHEMA = [];     // [{table, columns:[{name,type}]}] from the seed DB
 // so neither ever drifts from the actual tables the player queries.
 function buildSchemaHints() {
   const db = new SQL.Database();
-  db.exec(TrailContent.SEED_SQL);
+  db.exec(TrailContent.SEED_SQL + TrailContent.FORAGE_SQL); // forage joins the hints for the minigame
   SEED_SCHEMA = G.snapshotSchema(db);
   db.close();
   SCHEMA_HINTS = {};
@@ -609,6 +609,7 @@ function screenTravel() {
         <div><label>Pace</label>${sel('pace', Object.keys(E.PACE), run.pace)}</div>
         <div><label>Rations</label>${sel('rations', Object.keys(E.RATIONS), run.rations)}</div>
       </div>
+      <p class="dim" style="margin:8px 0 0">📊 Burn rate: ~${E.burnRate(run).lbsPerLeg} lbs per leg at these settings — about <b class="amber">${E.burnRate(run).legsOfFood}</b> legs of food aboard.</p>
     </div>
     <p class="nextstep center">Pick a pace and rations (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
     <div class="center"><button class="primary" onclick="doTravel()">Continue on trail ▸</button></div>
@@ -633,7 +634,6 @@ function doTravel() {
 
 function afterTravel() {
   if (run.dead) return screenTombstone();
-  if (run.stop > 4) return screenReport(true); // gray-box ends after stop 4 (Batch 2)
   if (C.RIVERS[run.stop]) return screenRiver();
   screenArrival();
 }
@@ -768,7 +768,9 @@ function screenDraft() {
         <div class="reward">Pays 🌾 ${c.reward.food} lbs · 💰 $${c.reward.coin}</div>
         <button class="primary" onclick="startCard(${i})">Take this job ▸</button>
       </div>`).join('')}
-    </div>`;
+    </div>
+    <div class="center" style="margin-top:8px"><button onclick="talkToFolks()">🗣 Talk to folks</button></div>
+    <div id="talkOut"></div>`;
 }
 
 function startCard(i) {
@@ -868,6 +870,11 @@ function guideBlurb(concept) {
     'WHERE / ORDER BY': 'WHERE filters rows (=, <, >, AND, IN); ORDER BY sorts the result, ASC or DESC.',
     'Aggregates + GROUP BY / HAVING': 'COUNT/SUM/AVG collapse many rows into one; GROUP BY makes one row per group; HAVING filters the groups.',
     'JOINs': 'JOIN matches rows across tables where the ON condition holds; LEFT JOIN keeps every left row and fills NULL when nothing matches. Qualify shared column names (table.column).',
+    'Subqueries + CTEs': 'A subquery is a query inside a query: use it to compute a value (AVG, MAX), a list for IN / NOT IN, or a derived table to select from.',
+    'CASE + conditional aggregation': "CASE WHEN ... THEN ... ELSE ... END builds a value per row; wrap it in SUM/COUNT to count or total only the rows that match a condition.",
+    'Window functions': 'OVER () runs an aggregate or ranking across rows WITHOUT collapsing them; PARTITION BY restarts it per group, ORDER BY inside OVER makes running totals and ranks.',
+    'Date & string functions': "strftime pulls date parts ('%m' = month), BETWEEN filters ranges, and UPPER/SUBSTR/LENGTH/LIKE handle text — the cleanup half of every real analyst job.",
+    'Capstone': 'Business questions rarely use one concept: combine joins, CASE, windows, and subqueries, and build the query from the inside out.',
   };
   return g[concept] || concept;
 }
@@ -976,12 +983,156 @@ function submitAnswer() {
     <button class="primary" onclick="afterCard()">Continue ▸</button>`;
 }
 
-// One card per town: resolving it sends you back onto the trail (or to the
-// gray-box report once you're past the authored towns).
+// One card per town: after it resolves, the town's extras open up (store,
+// trader, forage), then the trail — or Oregon after town 9.
 function afterCard() {
   if (run.dead) return screenTombstone();
-  if (run.stop >= 4) return screenReport(true); // authored towns 1-4
+  screenTownExtras();
+}
+function leaveTown() {
+  if (run.dead) return screenTombstone();
+  if (run.stop >= 9) return screenReport(true); // Oregon!
   screenTravel();
+}
+
+// ---------- town extras: general store, trader, forage ----------
+function extraDone(kind) { return (run.extrasDone || {})[run.stop + ':' + kind]; }
+function markExtra(kind) { (run.extrasDone = run.extrasDone || {})[run.stop + ':' + kind] = true; }
+
+function screenTownExtras() {
+  const t = run.stop, stop = C.STOPS[t - 1];
+  const opts = [];
+  if (C.STORES[t]) opts.push(`<button onclick="screenStore()">🛒 General store</button>`);
+  if (C.TRADERS[t] && !extraDone('trader')) opts.push(`<button onclick="screenTrader()">🤝 Talk to the trader</button>`);
+  if (!extraDone('forage')) opts.push(`<button onclick="screenForage()">🌿 Forage (timed query)</button>`);
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>${esc(stop.name)} — before you go</h2>
+    <div class="panel">
+      ${opts.length ? `<p>The job's done. Anything else before the wagon rolls?</p><div>${opts.join('')}</div>`
+                    : `<p class="dim">Nothing left to do here but watch the tumbleweeds.</p>`}
+    </div>
+    <div class="center"><button class="primary" onclick="leaveTown()">${t >= 9 ? 'Claim your land in Oregon ▸' : 'Back on the trail ▸'}</button></div>`;
+}
+
+function screenStore() {
+  const s = C.STORES[run.stop], stop = C.STOPS[run.stop - 1];
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>🛒 ${esc(stop.name)} — general store</h2>
+    <div class="panel">
+      <p>Food is <b class="amber">${Math.round(s.foodPrice * 100)}¢/lb</b> here. The doctor takes <b class="amber">$${s.doctor}</b> a visit (+25 health).</p>
+      <div class="row">
+        <div><label>$ to spend on food</label><input type="number" id="buyFood" value="0" min="0" max="${run.coin}"></div>
+      </div>
+      <p id="buyOut" class="dim"></p>
+      <button class="primary" onclick="storeBuy()">Buy food</button>
+      <button onclick="storeDoctor()" ${run.coin < s.doctor || run.health >= 100 ? 'disabled' : ''}>See the doctor (+25 health, $${s.doctor})</button>
+    </div>
+    <div class="center"><button onclick="screenTownExtras()">Done shopping ▸</button></div>`;
+  const upd = () => {
+    const d = Math.max(0, +document.getElementById('buyFood').value || 0);
+    document.getElementById('buyOut').textContent = d > run.coin
+      ? `You only have $${run.coin}.` : `That buys ${Math.floor(d / s.foodPrice)} lbs.`;
+  };
+  document.getElementById('buyFood').oninput = upd; upd();
+}
+function storeBuy() {
+  const s = C.STORES[run.stop];
+  const d = Math.max(0, Math.min(+document.getElementById('buyFood').value || 0, run.coin));
+  if (!d) return toast('Enter some dollars first.');
+  E.applyEffects(run, { coin: -d, food: Math.floor(d / s.foodPrice) });
+  toast(`Bought ${Math.floor(d / s.foodPrice)} lbs of food.`);
+  screenStore();
+}
+function storeDoctor() {
+  const s = C.STORES[run.stop];
+  E.applyEffects(run, { coin: -s.doctor, health: 25 });
+  toast('The doctor patches everyone up. +25 health.');
+  screenStore();
+}
+
+function screenTrader() {
+  const tr = C.TRADERS[run.stop], stop = C.STOPS[run.stop - 1];
+  const short = (tr.need.food && run.food < tr.need.food) || (tr.need.coin && run.coin < tr.need.coin);
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>🤝 ${esc(stop.name)} — a trader flags you down</h2>
+    <div class="panel">
+      <p>${esc(tr.text)}</p>
+      ${short ? `<p class="red">You can't cover this trade.</p>` : ''}
+      <button class="primary" onclick="acceptTrade()" ${short ? 'disabled' : ''}>Shake on it</button>
+      <button onclick="markExtra('trader');screenTownExtras()">Walk away</button>
+    </div>`;
+}
+function acceptTrade() {
+  E.applyEffects(run, C.TRADERS[run.stop].effects);
+  markExtra('trader');
+  toast('Deal done.');
+  screenTownExtras();
+}
+
+// ---------- forage minigame: one easy query against the clock ----------
+let forageTimer = null, forageLeft = 0, forageCard = null;
+function screenForage() {
+  const rand = TrailRNG.fromVersion(run.version + ':forage:' + run.stop);
+  forageCard = C.FORAGE_CARDS[Math.floor(rand() * C.FORAGE_CARDS.length)];
+  forageLeft = 60;
+  app.innerHTML = `
+    ${trailMap()}${statbar()}
+    <h2>🌿 Foraging — ${esc(forageCard.title)}</h2>
+    <div class="panel">
+      <p class="dim">Light's fading. One easy query, ${forageCard.baseFood} lbs on the line — the faster you run it, the more you carry home.</p>
+      <div class="objective"><span class="tag">🎯 Your task · <span id="forageClock">60</span>s</span>${esc(forageCard.prompt)}</div>
+      <div id="sqlHost"></div>
+      ${schemaStripHtml(forageCard)}
+      <div><button class="primary" onclick="submitForage()">▶ Execute</button></div>
+      <div id="result"></div>
+    </div>`;
+  mountEditor('sqlHost');
+  clearInterval(forageTimer);
+  forageTimer = setInterval(() => {
+    forageLeft--;
+    const el = document.getElementById('forageClock');
+    if (el) el.textContent = forageLeft;
+    if (forageLeft <= 0) {
+      clearInterval(forageTimer);
+      markExtra('forage');
+      const out = document.getElementById('result');
+      if (out) out.innerHTML = `<div class="helpline"><b>Too dark to tell the berries from the snakeberries.</b><br>
+        <span class="dim">You head back empty-handed. No harm done.</span></div>
+        <button class="primary" onclick="screenTownExtras()">Back to town ▸</button>`;
+      [...document.querySelectorAll('button')].forEach(b => { if (b.textContent.includes('Execute')) b.disabled = true; });
+    }
+  }, 1000);
+}
+function submitForage() {
+  if (forageLeft <= 0) return;
+  const r = G.grade(SQL, C.SEED_SQL + C.FORAGE_SQL, forageCard, editor ? editor.getValue() : '');
+  const out = document.getElementById('result');
+  if (r.tier === 'full') {
+    clearInterval(forageTimer);
+    markExtra('forage');
+    const lbs = Math.max(8, Math.round(forageCard.baseFood * forageLeft / 60));
+    E.applyEffects(run, { food: lbs }); refreshStat();
+    celebrate('win');
+    out.innerHTML = queryOutput(r, forageCard, 1) +
+      `<p class="amber">${esc(pick(WIN_LINES))} You haul back 🌾 ${lbs} lbs.</p>
+       <button class="primary" onclick="screenTownExtras()">Back to town ▸</button>`;
+  } else {
+    out.innerHTML = queryOutput(r, forageCard, 1) +
+      `<p class="dim">Not it — the clock's running. Adjust and go again.</p>`;
+  }
+}
+
+// Seeded gossip: a new line each click, cycling through a per-town shuffle.
+function talkToFolks() {
+  run._talkN = (run._talkN || 0) + 1;
+  const rand = TrailRNG.fromVersion(run.version + ':talk:' + run.stop);
+  const start = Math.floor(rand() * C.TOWN_TALK.length);
+  const line = C.TOWN_TALK[(start + run._talkN - 1) % C.TOWN_TALK.length];
+  const el = document.getElementById('talkOut');
+  if (el) el.innerHTML = `<div class="helpline">🗣 ${esc(line)}</div>`;
 }
 
 // Real-world query editor output: Results grid + Messages tab.
@@ -1071,8 +1222,11 @@ function screenReport(finished) {
   }).join('');
   const hist = loadHistory();
   const prev = hist.length > 1 ? hist[hist.length - 2] : null;
+  const victory = finished && run.stop >= 9;
+  if (victory && !run._celebrated) { run._celebrated = true; celebrate('win'); }
   app.innerHTML = `
-    <h2>${finished ? 'Gray-box complete — Journey Report' : 'Journey Report'}</h2>
+    <h2>${victory ? '🌄 You made it to Oregon — Journey Report' : 'Journey Report'}</h2>
+    ${victory ? `<div class="panel crt center"><pre style="margin:0;font-size:1.2em;line-height:1.3"> 🌲🌾🌲\n 🏡🌲🌾</pre><p class="dim">The Willamette Valley. Green, wide, and yours — the books balanced.</p></div>` : ''}
     <div class="panel">
       <div class="statbar">
         <span>Time <b>${mins}</b> min</span><span>Days <b>${run.day}</b></span>
@@ -1082,7 +1236,6 @@ function screenReport(finished) {
       <table><tr><th>Town</th><th>Job</th><th>Solved</th><th>Misses</th><th>Time</th></tr>${rows}</table>
       ${m.arrival ? `<p class="amber">Arrival bonus: +${m.arrival.total}</p><div class="dim">${m.arrival.parts.map(p => `${esc(p.label)} +${p.value}`).join(' · ')}</div>` : ''}
       ${prev ? `<p class="dim">Last run: score ${prev.score}, ${prev.mins} min — ${m.score > prev.score ? '<span class="amber">you beat it.</span>' : 'beat it next time.'}</p>` : '<p class="dim">First recorded run. This is your baseline.</p>'}
-      <p class="dim">The gray-box currently covers towns 1-4. Towns 5-9 (harder card tiers) unlock in later batches.</p>
     </div>
     ${(run.followUp && run.followUp.length) ? `
     <div class="panel">
@@ -1096,8 +1249,37 @@ function screenReport(finished) {
     </div>` : ''}
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
+      <button onclick="downloadShareCard(${finished})">📷 Share card (PNG)</button>
       <button onclick="screenTitle()">Title</button>
     </div>`;
+}
+
+// Canvas share card: 1200×630, brand-safe original art, downloads as PNG.
+function downloadShareCard(finished) {
+  const cv = document.createElement('canvas');
+  cv.width = 1200; cv.height = 630;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#f6f1e6'; x.fillRect(0, 0, 1200, 630);
+  x.strokeStyle = '#8b6f4e'; x.lineWidth = 6; x.strokeRect(24, 24, 1152, 582);
+  x.strokeStyle = '#6f4e2e33'; x.lineWidth = 2; x.strokeRect(40, 40, 1120, 550);
+  x.fillStyle = '#5b4632'; x.textAlign = 'center';
+  x.font = 'bold 84px Georgia'; x.fillText('S Q L   T R A I L', 600, 150);
+  x.font = '34px Georgia'; x.fillStyle = '#b0562c';
+  x.fillText(finished ? '🌄 Made it to Oregon' : '💀 Died on the trail', 600, 215);
+  x.fillStyle = '#3a2f22'; x.font = 'bold 44px Georgia';
+  x.fillText(`Score ${run.metrics.score}`, 600, 310);
+  x.font = '30px Georgia'; x.fillStyle = '#8a7a63';
+  x.fillText(`${run.day} days  ·  ❤️ ${run.health} health  ·  🌾 ${run.food} lbs  ·  💰 $${run.coin}  ·  help ×${run.metrics.hints}`, 600, 370);
+  // wagon line-art homage (original)
+  x.strokeStyle = '#6f4e2e'; x.lineWidth = 5; x.lineCap = 'round';
+  x.beginPath(); x.arc(520, 490, 34, 0, 7); x.arc(680, 490, 34, 0, 7); x.moveTo(470, 455); x.lineTo(730, 455);
+  x.moveTo(485, 455); x.quadraticCurveTo(600, 380, 715, 455); x.stroke();
+  x.fillStyle = '#8a7a63'; x.font = '26px Georgia';
+  x.fillText('michaelnocito.github.io/sql-trail', 600, 570);
+  const a = document.createElement('a');
+  a.download = 'sql-trail-run.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
 }
 
 function saveHistory(finished) {

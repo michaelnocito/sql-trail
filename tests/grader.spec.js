@@ -41,8 +41,9 @@ function check(name, cond, detail) {
   check('sql error caught', g(sel('SELECT 1'), 'SELEKT 1').reason === 'sql-error');
 
   console.log('card pool: content answers self-grade to full');
-  check('pool has 16 cards', Content.CARD_POOL.length === 16, String(Content.CARD_POOL.length));
-  check('four cards per tier 1-4', [1,2,3,4].every(t => Content.CARD_POOL.filter(c => c.tier === t).length === 4));
+  check('pool has 36 cards', Content.CARD_POOL.length === 36, String(Content.CARD_POOL.length));
+  check('four cards per tier 1-9', [1,2,3,4,5,6,7,8,9].every(t => Content.CARD_POOL.filter(c => c.tier === t).length === 4));
+  check('every town has a tier', [1,2,3,4,5,6,7,8,9].every(t => Content.TOWN_TIER[t] === t));
   check('every card carries a story + reward',
     Content.CARD_POOL.every(c => c.story && c.reward && typeof c.reward.food === 'number' && typeof c.reward.coin === 'number'));
   check('curriculum is read-only', Content.CARD_POOL.every(c => c.type !== 'write'));
@@ -74,6 +75,14 @@ function check(name, cond, detail) {
     const r = g(card, tapJoins[id]);
     check(`card ${id} unaliased tap query = full`, r.tier === 'full', r.reason + (r.error ? ': ' + r.error : ''));
   }
+
+  console.log('forage cards self-grade against seed+forage schema');
+  for (const c of Content.FORAGE_CARDS) {
+    const r = Grader.grade(SQL, seed + Content.FORAGE_SQL, c, c.answer);
+    check(`forage ${c.id} canonical answer = full`, r.tier === 'full', r.reason + (r.error ? ': ' + r.error : ''));
+  }
+  check('stores and traders reference real towns',
+    Object.keys(Content.STORES).concat(Object.keys(Content.TRADERS)).every(t => Content.TOWN_TIER[+t]));
 
   console.log('engine: three resources + roguelite rewards');
   const run = Engine.newRun(Content, ['You', 'Ada', 'Edgar', 'Codd'], { food: 30 });
@@ -111,6 +120,8 @@ function check(name, cond, detail) {
   Engine.applyEffects(dyingRun, { health: -10 });
   check('party dies when health hits 0', dyingRun.dead === true && dyingRun.metrics.deaths === 4);
   check('death logs a cause', /succumbed to .+\./.test(dyingRun.log[dyingRun.log.length - 1].text));
+  const br = Engine.burnRate(run);
+  check('burn rate reports lbs/leg and legs left', br.lbsPerLeg > 0 && typeof br.legsOfFood === 'number');
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
