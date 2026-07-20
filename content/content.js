@@ -20,11 +20,11 @@ INSERT INTO supplies VALUES
  ('bacon','food',80,0.55),
  ('dried apples','food',40,0.35),
  ('coffee','food',25,0.90),
- ('wagon wheel','gear',3,22.00),
- ('wagon axle','gear',2,18.50),
- ('wagon tongue','gear',1,16.00),
- ('medicine kit','medicine',2,12.75),
- ('bandages','medicine',6,1.10);
+ ('canvas tarp','gear',3,22.00),
+ ('coil of rope','gear',2,18.50),
+ ('tin lantern','gear',1,16.00),
+ ('snakebite kit','medicine',2,12.75),
+ ('linen bandages','medicine',6,1.10);
 
 CREATE TABLE party (
   member_id INTEGER PRIMARY KEY,
@@ -47,13 +47,13 @@ CREATE TABLE fort_inventory (
 INSERT INTO fort_inventory VALUES
  (1,'Fort Kearny','flour','food',0.25,500),
  (2,'Fort Kearny','bacon','food',0.60,120),
- (3,'Fort Kearny','wagon wheel','gear',25.00,4),
+ (3,'Fort Kearny','canvas tarp','gear',25.00,4),
  (4,'Fort Laramie','flour','food',0.35,300),
- (5,'Fort Laramie','medicine kit','medicine',15.00,3),
- (6,'Fort Laramie','oxen shoe','gear',4.50,20),
+ (5,'Fort Laramie','snakebite kit','medicine',15.00,3),
+ (6,'Fort Laramie','iron nails','gear',4.50,20),
  (7,'Fort Bridger','coffee','food',1.20,40),
- (8,'Fort Bridger','wagon axle','gear',21.00,2),
- (9,'Fort Bridger','bandages','medicine',1.50,25);
+ (8,'Fort Bridger','coil of rope','gear',21.00,2),
+ (9,'Fort Bridger','linen bandages','medicine',1.50,25);
 
 CREATE TABLE forts (
   fort TEXT PRIMARY KEY,
@@ -78,13 +78,13 @@ INSERT INTO ledger VALUES
  (2,'1848-05-11','Fort Kearny','bacon','buy',9.00),
  (3,'1848-05-19','Fort Kearny','rope','sell',4.00),
  (4,'1848-06-02','Fort Laramie','flour','buy',10.50),
- (5,'1848-06-09','Fort Laramie','medicine kit','buy',15.00),
+ (5,'1848-06-09','Fort Laramie','snakebite kit','buy',15.00),
  (6,'1848-06-15','Fort Laramie','dried apples','sell',6.50),
- (7,'1848-06-27','Fort Laramie','oxen shoe','buy',9.00),
+ (7,'1848-06-27','Fort Laramie','iron nails','buy',9.00),
  (8,'1848-07-08','Fort Bridger','coffee','buy',8.40),
- (9,'1848-07-16','Fort Bridger','bandages','buy',3.00),
+ (9,'1848-07-16','Fort Bridger','linen bandages','buy',3.00),
  (10,'1848-07-23','Fort Bridger','spare canvas','sell',11.00),
- (11,'1848-08-05','Fort Bridger','wagon axle','buy',21.00),
+ (11,'1848-08-05','Fort Bridger','coil of rope','buy',21.00),
  (12,'1848-08-14','Fort Bridger','coffee','sell',5.20);
 `;
 
@@ -267,10 +267,10 @@ INSERT INTO forage VALUES
       story: 'New crate stencils only come in capital letters. Print every supply item in UPPER case with its qty so the painter can get to work.',
       prompt: 'From supplies, return UPPER(item) (name it label) and qty.',
       answer: 'SELECT UPPER(item) AS label, qty FROM supplies', reward: { food: 74, coin: 21 } },
-    { id: 'str-like', tier: 8, concept: 'Date & string functions', title: 'Anything Wagon',
-      story: "The wheelwright will fix 'anything with wagon in the name.' Hold him to it — find every supply item containing 'wagon'.",
-      prompt: "From supplies, return the items whose name contains 'wagon'. Use LIKE.",
-      answer: "SELECT item FROM supplies WHERE item LIKE '%wagon%'", reward: { food: 74, coin: 21 } },
+    { id: 'str-like', tier: 8, concept: 'Date & string functions', title: 'The C Drawer',
+      story: "The quartermaster files everything by first letter and swears the 'C' drawer is jammed. Prove him right — every item starting with C.",
+      prompt: "From supplies, return the items whose name starts with 'c'. Use LIKE.",
+      answer: "SELECT item FROM supplies WHERE item LIKE 'c%'", reward: { food: 74, coin: 21 } },
 
     // ---- Tier 9: Capstone (multi-concept business questions) ----
     { id: 'cap-monthly', tier: 9, concept: 'Capstone', title: 'The Season in One Table',
@@ -326,7 +326,7 @@ INSERT INTO forage VALUES
     'A kid runs past yelling that the ferry man cheats. The ferry man agrees, cheerfully.',
     '"Rained six days straight east of here," says a woman patching canvas. "Cover your flour."',
     'The blacksmith taps your wheel: "She\'ll hold. Your queries, though — qualify your columns."',
-    'A preacher warns against Cartesian products. His sermon has no ON clause either.',
+    'A preacher bellows: "Keep only what you need, brothers — the rest is just weight on the wagon."',
     'Two clerks argue whether HAVING comes before ORDER BY. A third quietly wins money on it.',
     'The general store cat has opinions about your rations. All of them are "more bacon."',
     '"Trail\'s kinder to folks who read their own ledgers," says a granny knitting by the well.',
@@ -350,8 +350,8 @@ INSERT INTO forage VALUES
   const ITEM_ICONS = {
     'flour': '🌾', 'bacon': '🥓', 'dried apples': '🍎', 'coffee': '☕',
     'salt pork': '🥩', 'cornmeal': '🌽', 'lard': '🧈', 'rope': '🪢',
-    'wagon wheel': '🛞', 'wagon axle': '⚙️', 'wagon tongue': '🪵', 'oxen shoe': '🐂',
-    'medicine kit': '💊', 'bandages': '🩹',
+    'canvas tarp': '⛺', 'coil of rope': '🪢', 'tin lantern': '🏮', 'iron nails': '🔩',
+    'snakebite kit': '💊', 'linen bandages': '🩹',
     'food': '🌾', 'gear': '🔧', 'medicine': '💊',
     'Fort Kearny': '🏕️', 'Fort Laramie': '🏕️', 'Fort Bridger': '🏕️',
   };
@@ -378,7 +378,7 @@ INSERT INTO forage VALUES
   const DEATH_CAUSES = ['dysentery', 'typhoid fever', 'cholera', 'a snakebite', 'exhaustion'];
 
   const EPITAPHS = [
-    'died of a Cartesian product',
+    'left a query running overnight',
     'forgot the WHERE clause',
     'joined the great table in the sky',
     'GROUP BY grief',

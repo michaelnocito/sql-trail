@@ -86,18 +86,16 @@
     background: var(--brown-dark); border: none; color: #fff8ec; border-radius: 8px;
     padding: 10px 18px; display: none; max-width: 90vw; box-shadow: 0 3px 10px rgba(0,0,0,.3); }
 
-  /* --- Aged-paper backdrop (Michael Nocito original drawings) ---
-     Three faint sepia-keyed drawings sit behind the cards, all edge-feathered so
-     no border shows: the lake scene (dock reworked into railroad tracks) as the
-     trail's horizon along the bottom; the bonfire flames blended into the upper-
-     left; the corn + scarecrows blended into the upper-right. Paper glow + grain
-     remain. On body::before, under all content, kept out of the UI's way. --- */
+  /* --- Full-bleed backdrop (Michael Nocito original charcoal) ---
+     The lake scene, its dock reworked into a raised railroad trestle bridge, fills
+     the whole viewport as a faint sepia wash — lighter at the top behind the title
+     and cards, more present at the bottom where the track runs. Paper glow + grain
+     remain. On body::before, under all content, kept out of the UI's way.
+     (bg-fire.png + bg-cornfield.png stay in art/ for later reuse.) --- */
   body::before {
-    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .8;
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .82;
     background:
-      url("art/bg-fire.png") top -14px left -8px / clamp(120px, 15vw, 190px) auto no-repeat,
-      url("art/bg-cornfield.png") top -18px right -20px / clamp(190px, 28vw, 340px) auto no-repeat,
-      url("art/bg-lake.png") bottom center / min(1150px, 132%) auto no-repeat,
+      url("art/bg-lake.png") center bottom / cover no-repeat,
       radial-gradient(ellipse 320px 220px at 12% 20%, rgba(120,80,40,.10), transparent 70%),
       radial-gradient(ellipse 260px 200px at 88% 72%, rgba(120,80,40,.09), transparent 70%),
       radial-gradient(ellipse 220px 160px at 60% 92%, rgba(120,80,40,.08), transparent 70%),
@@ -194,6 +192,31 @@
   .fxflash { position: fixed; inset: 0; z-index: 9998; pointer-events: none; animation: fxflash .5s ease forwards; }
   @keyframes fxflash { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
 
+  /* --- Modern travel scene: SVG wagon roll --- */
+  .travelscene {
+    position: relative; width: 100%; aspect-ratio: 20 / 9; max-height: 260px;
+    border-radius: 12px; overflow: hidden; border: 1px solid #e2d5bc;
+    background: linear-gradient(#fdf5e3 0%, #f7ecd2 44%, #efe0bd 60%, #e6d1a3 100%);
+    box-shadow: inset 0 -20px 34px rgba(150,110,60,.14);
+  }
+  .travelscene svg { display: block; width: 100%; height: 100%; }
+  .tw-cloud { animation: twCloud 10s linear infinite; }
+  .tw-cloud.b { animation-duration: 15s; }
+  @keyframes twCloud { from { transform: translateX(0); } to { transform: translateX(-48px); } }
+  .tw-rig { animation: twRoll var(--rolldur, 2.8s) cubic-bezier(.16,.72,.3,1) forwards; will-change: transform; }
+  @keyframes twRoll { from { transform: translateX(-72px); } to { transform: translateX(432px); } }
+  .tw-bob { animation: twBob .5s ease-in-out infinite; }
+  @keyframes twBob { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-1.6px); } 70% { transform: translateY(1px); } }
+  .tw-wheel { transform-box: fill-box; transform-origin: center; animation: twSpin .5s linear infinite; }
+  @keyframes twSpin { to { transform: rotate(360deg); } }
+  .tw-dust { transform-box: fill-box; transform-origin: center; opacity: 0; animation: twDust 1.1s ease-out infinite; }
+  .tw-dust.d2 { animation-delay: .37s; } .tw-dust.d3 { animation-delay: .74s; }
+  @keyframes twDust { 0% { opacity: 0; transform: translate(0,0) scale(.4); } 25% { opacity: .5; } 100% { opacity: 0; transform: translate(-30px,-9px) scale(1.7); } }
+  @media (prefers-reduced-motion: reduce) {
+    .tw-rig, .tw-bob, .tw-wheel, .tw-dust, .tw-cloud { animation: none !important; }
+    .tw-rig { transform: translateX(180px); }
+  }
+
   /* --- Roguelite town draft cards + single health bar --- */
   .cards { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px; }
   @media (min-width: 680px) { .cards { grid-template-columns: 1fr 1fr 1fr; } }
@@ -220,47 +243,45 @@
   .hbar-fill { display: block; height: 100%; transition: width .3s; }
 
   /* --- Query editor: industry-standard (VS Code dark) SQL coloring --- */
+  /* Light SQL-editor theme (warm paper white, VS-Code-Light-ish syntax) */
   .CodeMirror.cm-s-trail {
-    background: #0d0d0b; color: #d4d4d4; border: 1px solid var(--dim);
+    background: #fbf9f3; color: #33302a; border: 1px solid #cbbb9e;
     height: auto; min-height: 140px; font-family: Consolas, "Courier New", monospace;
     font-size: 15px; text-shadow: none;
   }
   .cm-s-trail .CodeMirror-lines { padding: 8px 0; }
-  .cm-s-trail .CodeMirror-gutters { background: #0d0d0b; border-right: 1px solid #222; }
-  .cm-s-trail .CodeMirror-linenumber { color: #555; }
-  .cm-s-trail .CodeMirror-cursor { border-left: 2px solid #d4d4d4; }
-  .cm-s-trail .CodeMirror-selected { background: #264f78 !important; }
-  .cm-s-trail span.cm-keyword { color: #569cd6; font-weight: bold; }
-  .cm-s-trail span.cm-builtin { color: #dcdcaa; }
-  .cm-s-trail span.cm-string, .cm-s-trail span.cm-string-2 { color: #ce9178; }
-  .cm-s-trail span.cm-number { color: #b5cea8; }
-  .cm-s-trail span.cm-comment { color: #6a9955; font-style: italic; }
-  .cm-s-trail span.cm-operator { color: #d4d4d4; }
-  .cm-s-trail span.cm-variable, .cm-s-trail span.cm-variable-2 { color: #9cdcfe; }
-  .cm-s-trail span.cm-atom { color: #569cd6; }
-  .cm-s-trail span.cm-bracket { color: #ffd700; }
+  .cm-s-trail .CodeMirror-gutters { background: #f3ecdd; border-right: 1px solid #e2d5bc; }
+  .cm-s-trail .CodeMirror-linenumber { color: #b0a180; }
+  .cm-s-trail .CodeMirror-cursor { border-left: 2px solid #33302a; }
+  .cm-s-trail .CodeMirror-selected { background: #d7e6ff !important; }
+  .cm-s-trail span.cm-keyword { color: #0033b3; font-weight: bold; }
+  .cm-s-trail span.cm-builtin { color: #795e26; }
+  .cm-s-trail span.cm-string, .cm-s-trail span.cm-string-2 { color: #a31515; }
+  .cm-s-trail span.cm-number { color: #098658; }
+  .cm-s-trail span.cm-comment { color: #6a737d; font-style: italic; }
+  .cm-s-trail span.cm-operator { color: #33302a; }
+  .cm-s-trail span.cm-variable, .cm-s-trail span.cm-variable-2 { color: #001080; }
+  .cm-s-trail span.cm-atom { color: #0033b3; }
+  .cm-s-trail span.cm-bracket { color: #9a6b00; }
   .CodeMirror-hints {
-    background: #1e1e1e; border: 1px solid #454545; font-family: Consolas, monospace;
-    font-size: 14px; z-index: 50;
+    background: #fffdf8; border: 1px solid #cbbb9e; font-family: Consolas, monospace;
+    font-size: 14px; z-index: 50; box-shadow: 0 2px 8px rgba(90,70,50,.18);
   }
-  .CodeMirror-hint { color: #d4d4d4; }
-  li.CodeMirror-hint-active { background: #094771; color: #fff; }
+  .CodeMirror-hint { color: #33302a; }
+  li.CodeMirror-hint-active { background: #d7e6ff; color: #0033b3; }
 
-  /* --- Results pane: real query-editor output --- */
+  /* --- Results pane: light SQL-editor output (base light table styles apply) --- */
   .outtabs { display: flex; gap: 0; margin-top: 10px; }
   .outtabs button {
     min-height: 30px; padding: 3px 14px; margin: 0; font-size: .85em;
-    border: 1px solid var(--dim); border-bottom: none; color: var(--dim);
+    border: 1px solid #cbbb9e; border-bottom: none; color: #8a7a5f; background: #f3ecdd;
   }
-  .outtabs button.on { color: var(--amber); border-color: var(--amber); background: var(--bg); }
-  .outpane { border: 1px solid var(--dim); padding: 8px; background: #0d0d0b;
+  .outtabs button.on { color: var(--brown-dark); border-color: #cbbb9e; background: #fbf9f3; font-weight: 600; }
+  .outpane { border: 1px solid #cbbb9e; padding: 8px; background: #fbf9f3;
     max-height: 300px; overflow: auto; }
-  .outpane table { margin: 0; color: #d7d3c7; }               /* light text on the dark result pane */
-  .outpane th { color: var(--crt-amber); background: #23231c; border-color: #34342a; }
-  .outpane td { border-color: #2b2b22; }
-  .outpane tr:nth-child(even) td { background: rgba(255,255,255,.045); }  /* legible zebra, not light-theme cream */
-  .outpane .gridnum { text-align: right; color: #b5cea8; }
-  .msgline { font-size: .9em; color: #cccccc; text-shadow: none; font-family: Consolas, monospace; }
+  .outpane table { margin: 0; }
+  .outpane .gridnum { text-align: right; color: #6b6252; }
+  .msgline { font-size: .9em; color: #4a4437; text-shadow: none; font-family: Consolas, monospace; }
   .msgline.err { color: var(--red); }
 
   /* --- Tap-token query builder (Batch 2): Build tab beside typing --- */
@@ -374,7 +395,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 31;
+const BUILD = 32;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -710,7 +731,7 @@ function screenTitle() {
   app.innerHTML = `
     <h1 class="center">S Q L &nbsp; T R A I L</h1>
     <div class="panel crt center">
-      <p style="margin:4px 0">You have died of a Cartesian product.<br><span class="dim">…not yet, anyway.</span></p>
+      <p style="margin:4px 0">You have died of a bad query.<br><span class="dim">…not yet, anyway.</span></p>
     </div>
     <div class="panel">
       <p>Travel the trail. At every town, pick one of three posted jobs — interview-grade SQL decides whether the party eats.</p>
@@ -872,17 +893,47 @@ function screenArrival() {
 // Purely cosmetic — determinism untouched. Skippable.
 let animTimer = null;
 function screenTravelAnim(pre) {
-  const TICKS = 34, MS = 85, LANE = 44;
+  const DUR = 2800;
   const days = run.day - pre.day, food = run.food - pre.food;
   const dest = C.STOPS[Math.min(run.stop, 9) - 1];
-  let t = 0;
 
   app.innerHTML = `
     ${trailMap()}
     <h2>On the trail — toward ${esc(dest.name)}</h2>
-    <div class="panel crt">
-      <pre id="scene" style="margin:0;line-height:1.15;font-size:.85em;overflow:hidden"></pre>
-      <div class="statbar" style="margin-top:6px">
+    <div class="panel">
+      <div class="travelscene">
+        <svg viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <circle cx="332" cy="40" r="18" fill="#f7e3aa" opacity=".85"/>
+          <g class="tw-cloud"><ellipse cx="120" cy="34" rx="26" ry="9" fill="#fffdf6" opacity=".85"/><ellipse cx="150" cy="30" rx="17" ry="8" fill="#fffdf6" opacity=".8"/></g>
+          <g class="tw-cloud b"><ellipse cx="284" cy="52" rx="22" ry="8" fill="#fffdf6" opacity=".7"/></g>
+          <path d="M0 120 Q90 92 180 116 T400 110 V180 H0 Z" fill="#cdbb8f" opacity=".55"/>
+          <path d="M0 140 Q110 116 210 136 T400 134 V180 H0 Z" fill="#b49c68" opacity=".6"/>
+          <rect x="0" y="146" width="400" height="34" fill="#c7ab77" opacity=".6"/>
+          <path d="M0 159 Q200 151 400 159" stroke="#a4854f" stroke-width="6" fill="none" opacity=".5"/>
+          <g class="tw-rig">
+            <g class="tw-bob">
+              <g>
+                <circle class="tw-dust"    cx="66" cy="143" r="5" fill="#dcc79d"/>
+                <circle class="tw-dust d2"  cx="63" cy="145" r="6" fill="#dcc79d"/>
+                <circle class="tw-dust d3"  cx="69" cy="141" r="4" fill="#dcc79d"/>
+              </g>
+              <g fill="#6f573a">
+                <ellipse cx="30" cy="133" rx="13" ry="6.5"/>
+                <ellipse cx="45" cy="130" rx="5" ry="4"/>
+                <rect x="22" y="138" width="2" height="7"/><rect x="35" y="138" width="2" height="7"/>
+              </g>
+              <path d="M47 127 l3 -3 M44 127 l-2 -3" stroke="#6f573a" stroke-width="1.4" fill="none"/>
+              <line x1="49" y1="131" x2="70" y2="129" stroke="#7a6242" stroke-width="2"/>
+              <path d="M70 121 q22 -21 44 0 z" fill="#f4ead2" stroke="#c9ad82" stroke-width="1.4"/>
+              <path d="M84 111 V121 M98 111 V121" stroke="#dcc79d" stroke-width="1"/>
+              <path d="M69 121 h46 v10 q0 4 -4 4 h-38 q-4 0 -4 -4 z" fill="#8a6a45" stroke="#5f4830" stroke-width="1.2"/>
+              <g class="tw-wheel"><circle cx="80" cy="139" r="8" fill="#efe4cd" stroke="#4f3b26" stroke-width="2.2"/><path d="M80 131 V147 M72 139 H88 M74.5 133.5 L85.5 144.5 M85.5 133.5 L74.5 144.5" stroke="#4f3b26" stroke-width="1"/></g>
+              <g class="tw-wheel"><circle cx="106" cy="139" r="8" fill="#efe4cd" stroke="#4f3b26" stroke-width="2.2"/><path d="M106 131 V147 M98 139 H114 M100.5 133.5 L111.5 144.5 M111.5 133.5 L100.5 144.5" stroke="#4f3b26" stroke-width="1"/></g>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <div class="statbar" style="margin-top:8px">
         <span>📅 Day <b id="animDay">${pre.day}</b></span>
         <span>🌾 <b id="animFood">${pre.food}</b> lbs</span>
         <span class="dim">${esc(run.pace)} pace · ${esc(run.rations)} rations</span>
@@ -891,30 +942,15 @@ function screenTravelAnim(pre) {
     <div class="center"><button onclick="finishTravelAnim()">Skip ▸▸</button></div>
     <div id="animLog"></div>`;
 
-  const draw = () => {
-    const x = Math.round((t / TICKS) * (LANE - 12));
-    const pad = ' '.repeat(x);
-    const wheel = t % 2 ? 'o' : '*';
-    const cloud = ' '.repeat((x * 2) % 30) + '~~~';
-    document.getElementById('scene').textContent =
-`  ${cloud}
-        /\\      /\\/\\        ${t % 4 < 2 ? '🌤' : '  '}
-   /\\  /  \\/\\  /    \\  /\\
-__/  \\/      \\/      \\/  \\____________________________
-${pad}   ____
-${pad}  /SQL \\\\__
-${pad} | TRAIL  |=🐂🐂
-${pad}  ${wheel}------${wheel}
-${'ⁿ'.repeat(LANE + 8)}`;
-    document.getElementById('animDay').textContent = pre.day + Math.round(days * t / TICKS);
-    document.getElementById('animFood').textContent = pre.food + Math.round(food * t / TICKS);
-  };
-  draw();
+  document.querySelector('.tw-rig')?.style.setProperty('--rolldur', DUR + 'ms');
+
+  const t0 = performance.now();
   animTimer = setInterval(() => {
-    t++;
-    if (t >= TICKS) return finishTravelAnim();
-    draw();
-  }, MS);
+    const p = Math.min(1, (performance.now() - t0) / DUR);
+    document.getElementById('animDay').textContent = pre.day + Math.round(days * p);
+    document.getElementById('animFood').textContent = pre.food + Math.round(food * p);
+    if (p >= 1) finishTravelAnim();
+  }, 60);
 
   window.finishTravelAnim = () => {
     clearInterval(animTimer);
