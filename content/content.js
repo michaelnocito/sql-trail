@@ -186,19 +186,19 @@ INSERT INTO forage VALUES
     { id: 'join-inner', tier: 4, concept: 'JOINs', title: 'Two Ledgers, One Truth',
       story: "Your ledger and the fort's ledger both mention items. Match them up: item, the fort, and its price there.",
       prompt: 'Which of your supplies does a fort also sell? Join supplies to fort_inventory on item; return item, fort, price.',
-      answer: 'SELECT s.item, f.fort, f.price FROM supplies s JOIN fort_inventory f ON s.item = f.item', reward: { food: 44, coin: 10 } },
+      answer: 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item', reward: { food: 44, coin: 10 } },
     { id: 'join-anti', tier: 4, concept: 'JOINs', title: 'Nobody Sells These',
       story: "The blacksmith bets you can't find which of your supplies NO fort can replace. Prove him wrong — LEFT JOIN, and keep the lonely rows.",
       prompt: 'Which supplies can no fort replace? LEFT JOIN supplies to fort_inventory; return items with no match.',
-      answer: 'SELECT s.item FROM supplies s LEFT JOIN fort_inventory f ON s.item = f.item WHERE f.item IS NULL', reward: { food: 46, coin: 10 } },
+      answer: 'SELECT supplies.item FROM supplies LEFT JOIN fort_inventory ON supplies.item = fort_inventory.item WHERE fort_inventory.item IS NULL', reward: { food: 46, coin: 10 } },
     { id: 'join-min', tier: 4, concept: 'JOINs', title: 'Best Price on the Trail',
       story: 'For each item a fort sells, a savvy pioneer knows the cheapest price anywhere. Find it and name it best_price.',
       prompt: 'For your supplies sold at any fort, return the item and the lowest fort price (name it best_price).',
-      answer: 'SELECT s.item, MIN(f.price) AS best_price FROM supplies s JOIN fort_inventory f ON s.item = f.item GROUP BY s.item', reward: { food: 46, coin: 10 } },
+      answer: 'SELECT supplies.item, MIN(fort_inventory.price) AS best_price FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item GROUP BY supplies.item', reward: { food: 46, coin: 10 } },
     { id: 'join-three', tier: 4, concept: 'JOINs', title: 'Plan the Whole Route', orderMatters: true,
       story: 'Three ledgers now: your supplies, the fort prices, and how far each fort sits up the trail. Lay out the resupply plan in marching order.',
       prompt: 'For supplies sold at forts, return item, fort, price, and miles. Order by miles up the trail, then by item.',
-      answer: 'SELECT s.item, f.fort, f.price, t.miles FROM supplies s JOIN fort_inventory f ON s.item = f.item JOIN forts t ON f.fort = t.fort ORDER BY t.miles, s.item', reward: { food: 50, coin: 12 } },
+      answer: 'SELECT supplies.item, fort_inventory.fort, fort_inventory.price, forts.miles FROM supplies JOIN fort_inventory ON supplies.item = fort_inventory.item JOIN forts ON fort_inventory.fort = forts.fort ORDER BY forts.miles, supplies.item', reward: { food: 50, coin: 12 } },
 
     // ---- Tier 5: Subqueries + CTEs ----
     { id: 'sub-avg', tier: 5, concept: 'Subqueries + CTEs', title: 'Fancier Than Average',
@@ -284,11 +284,11 @@ INSERT INTO forage VALUES
     { id: 'cap-value', tier: 9, concept: 'Capstone', title: 'Which Forts Matter',
       story: "HQ will only resupply forts holding serious inventory. Join the ledgers, value each fort's stock (price × stock), and keep the ones over 200 dollars.",
       prompt: 'Join fort_inventory to forts. Return fort and SUM(price * stock) as inventory_value, only for forts where that sum exceeds 200.',
-      answer: 'SELECT f.fort, SUM(f.price * f.stock) AS inventory_value FROM fort_inventory f JOIN forts t ON f.fort = t.fort GROUP BY f.fort HAVING SUM(f.price * f.stock) > 200', reward: { food: 84, coin: 26 } },
+      answer: 'SELECT fort_inventory.fort, SUM(fort_inventory.price * fort_inventory.stock) AS inventory_value FROM fort_inventory JOIN forts ON fort_inventory.fort = forts.fort GROUP BY fort_inventory.fort HAVING SUM(fort_inventory.price * fort_inventory.stock) > 200', reward: { food: 84, coin: 26 } },
     { id: 'cap-audit', tier: 9, concept: 'Capstone', title: 'The Final Audit',
       story: "Before Oregon, one last audit: for every supply a fort sells, show your qty and the best price any fort offers — the buy-list that gets you through winter.",
       prompt: 'For supplies that appear in fort_inventory, return item, qty, and the minimum fort price for that item (name it best_price). Use a correlated subquery.',
-      answer: 'SELECT s.item, s.qty, (SELECT MIN(f.price) FROM fort_inventory f WHERE f.item = s.item) AS best_price FROM supplies s WHERE s.item IN (SELECT item FROM fort_inventory)', reward: { food: 88, coin: 28 } },
+      answer: 'SELECT supplies.item, supplies.qty, (SELECT MIN(fort_inventory.price) FROM fort_inventory WHERE fort_inventory.item = supplies.item) AS best_price FROM supplies WHERE supplies.item IN (SELECT item FROM fort_inventory)', reward: { food: 88, coin: 28 } },
   ];
 
   // Forage minigame cards: easy, timed, graded against SEED_SQL + FORAGE_SQL.

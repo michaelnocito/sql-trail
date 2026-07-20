@@ -330,7 +330,9 @@
   .outtabs button.on { color: var(--brown-dark); border-color: #cbbb9e; background: #fbf9f3; font-weight: 600; }
   .outpane { border: 1px solid #cbbb9e; padding: 8px; background: #fbf9f3;
     max-height: 300px; overflow: auto; }
-  .outpane table { margin: 0; }
+  /* width:auto so a 1-column COUNT doesn't stretch its number across the pane */
+  .outpane table { margin: 0; width: auto; min-width: 55%; }
+  .outpane td, .outpane th { padding: 4px 14px 4px 8px; }
   .outpane .gridnum { text-align: right; color: #6b6252; }
   .msgline { font-size: .9em; color: #4a4437; text-shadow: none; font-family: Consolas, monospace; }
   .msgline.err { color: var(--red); }
@@ -446,7 +448,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 34;
+const BUILD = 35;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -1242,7 +1244,7 @@ function guideBlurb(concept) {
     'SELECT fundamentals': 'SELECT chooses columns; DISTINCT removes duplicates; you can compute new columns with arithmetic and AS.',
     'WHERE / ORDER BY': 'WHERE filters rows (=, <, >, AND, IN); ORDER BY sorts the result, ASC or DESC.',
     'Aggregates + GROUP BY / HAVING': 'COUNT/SUM/AVG collapse many rows into one; GROUP BY makes one row per group; HAVING filters the groups.',
-    'JOINs': 'JOIN matches rows across tables where the ON condition holds; LEFT JOIN keeps every left row and fills NULL when nothing matches. Qualify shared column names (table.column).',
+    'JOINs': 'JOIN matches rows across tables where the ON condition holds; LEFT JOIN keeps every left row and fills NULL when nothing matches. Qualify shared column names (table.column). Pros often shorten names with aliases — FROM supplies s, then s.item — but full table names work everywhere here.',
     'Subqueries + CTEs': 'A subquery is a query inside a query: use it to compute a value (AVG, MAX), a list for IN / NOT IN, or a derived table to select from.',
     'CASE + conditional aggregation': "CASE WHEN ... THEN ... ELSE ... END builds a value per row; wrap it in SUM/COUNT to count or total only the rows that match a condition.",
     'Window functions': 'OVER () runs an aggregate or ranking across rows WITHOUT collapsing them; PARTITION BY restarts it per group, ORDER BY inside OVER makes running totals and ranks.',
