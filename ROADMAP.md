@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 35 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 37 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,16 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Batch 8.10 — Top-to-bottom review: 5 low-friction/learning picks (SHIPPED build 37)
+Full review (content, graphics, mobile playtest at 375×812). Findings that shipped:
+1. **Scroll-to-result** — on mobile in Build mode the result rendered at ~y951 on an 812px screen with no scroll: tapping ▶ Execute appeared to do NOTHING. showResult() brings the result into view (smooth + snap fallback) after every job/forage submit.
+2. **Diagnostic coaching (learning)** — wrong-but-valid queries only got a joke line. Grader now exposes expectedShape (rows/cols/names, never values); 🧭 coaching on misses: wrong column names (from SQL errors), wrong column count/names, row count too high/low (with WHERE/join nudge), wrong order → ORDER BY nudge.
+3. **Travel rows = 44px tap targets** on coarse pointers/small screens (were 28px).
+4. **Trail-map orientation** — 📍 "town X of 9 — Name · N legs to Oregon" now lives OUTSIDE the scrolling strip (was hidden inside it on phones), and a MutationObserver auto-centers the ◆ marker in the strip.
+5. **Clean-solve streak (enjoyment)** — 🔥 chip on the payout card at 2+, bonus burst at 3+; cosmetic only, no pay change.
+Review notes (not shipped, future candidates): no first-run "how to play" card; store/doctor fine; draft page ~1.3 screens acceptable; no audio.
+131 tests (new: grader expectedShape).
 
 ### Batch 8.9 — 07-19 live-playtest feedback, builds 32–35 (SHIPPED)
 Mike's in-chat feedback, chunked into four one-at-a-time batches per his instruction:

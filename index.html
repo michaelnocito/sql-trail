@@ -140,7 +140,9 @@
   }
   .crt .dim { color: var(--crt-dim); }
   .crt .amber, .crt b { color: var(--crt-amber); font-weight: 600; }
-  .trailmap { white-space: pre; overflow-x: auto; font-size: .85em; line-height: 1.2; }
+  .trailmap { font-size: .85em; line-height: 1.2; }
+  .trailmap .tmscroll { white-space: pre; overflow-x: auto; }
+  .trailmap .tmline { white-space: normal; margin-top: 3px; }
   .tomb { white-space: pre; font-size: .9em; line-height: 1.15; color: var(--crt-fg); }
 
   /* --- Orientation aids: the player always knows what to do --- */
@@ -232,6 +234,10 @@
   tr.pick:hover td { background: var(--gold); }
   tr.pick.on td { background: var(--brown-dark); color: #fff8ec; border-color: var(--brown-dark); }
   tr.pick.on td .dim { color: #e8dcc4; }
+  /* fingers, not cursors: give option rows a full 44px touch target */
+  @media (pointer: coarse), (max-width: 640px) {
+    tr.pick td { padding: 12px 8px; }
+  }
 
   /* HP bar: smooth fill, hit pulse when a member just took damage */
   .hbar-fill { transition: width .45s ease, background .3s; }
@@ -381,10 +387,10 @@
   }
 
   /* Slim dark scrollbars everywhere inside the game panes */
-  .outpane, .trailmap { scrollbar-width: thin; scrollbar-color: #333 #0d0d0b; }
-  .outpane::-webkit-scrollbar, .trailmap::-webkit-scrollbar { width: 8px; height: 8px; }
-  .outpane::-webkit-scrollbar-track, .trailmap::-webkit-scrollbar-track { background: #0d0d0b; }
-  .outpane::-webkit-scrollbar-thumb, .trailmap::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+  .outpane, .tmscroll { scrollbar-width: thin; scrollbar-color: #333 #0d0d0b; }
+  .outpane::-webkit-scrollbar, .tmscroll::-webkit-scrollbar { width: 8px; height: 8px; }
+  .outpane::-webkit-scrollbar-track, .tmscroll::-webkit-scrollbar-track { background: #0d0d0b; }
+  .outpane::-webkit-scrollbar-thumb, .tmscroll::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
   /* CodeMirror wraps lines; kill its native scrollbar chrome entirely */
   .CodeMirror-hscrollbar, .CodeMirror-vscrollbar, .CodeMirror-scrollbar-filler { display: none !important; }
 
@@ -448,7 +454,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 36;
+const BUILD = 37;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -473,6 +479,17 @@ async function checkForUpdate() {
   } catch { /* offline or file:// — ignore */ }
 }
 const app = document.getElementById('app');
+// Keep the ◆ you-are-here marker in view whenever a trail map renders — on
+// phones the strip is wider than the screen and used to hide your position.
+new MutationObserver(() => {
+  document.querySelectorAll('.tmscroll').forEach(el => {
+    if (el._centered) return;
+    el._centered = true;
+    const i = el.textContent.indexOf('◆');
+    if (i > -1 && el.scrollWidth > el.clientWidth)
+      el.scrollLeft = Math.max(0, el.scrollWidth * (i / el.textContent.length) - el.clientWidth / 2);
+  });
+}).observe(app, { childList: true, subtree: true });
 let SQL = null;
 let run = null;
 let qState = null; // per-card: {card, misses, startedAt, resolved, townId}
@@ -807,7 +824,12 @@ function trailMap() {
     const passed = run && run.stop > i + 1;
     line += (passed ? '══' : '──') + (here ? '[◆]' : passed ? '[■]' : '[ ]');
   });
-  return `<div class="panel crt trailmap">START ${line}══► OREGON\n<span class="dim">town ${run ? Math.min(run.stop, 9) : 0} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}</span></div>`;
+  const at = run ? Math.min(run.stop, 9) : 0;
+  const legs = Math.max(0, 9 - at);
+  // The strip scrolls on phones; the 📍 line stays visible so the player always
+  // knows where they are and how far Oregon is without scrolling the map.
+  return `<div class="panel crt trailmap"><div class="tmscroll">START ${line}══► OREGON</div>
+    <div class="dim tmline">📍 town ${at} of 9 — ${run && run.stop >= 1 && run.stop <= 9 ? esc(C.STOPS[run.stop - 1].name) : 'the outfitter'}${at >= 1 ? ` · ${legs === 0 ? 'Oregon is the next stop' : `${legs} leg${legs === 1 ? '' : 's'} to Oregon`}` : ''}</div></div>`;
 }
 
 // ---------- screens ----------
@@ -1278,6 +1300,44 @@ function addFollowUp(card) {
     run.followUp.push({ concept: card.concept, desc: guideBlurb(card.concept) });
 }
 
+// Diagnostic coaching: tell the player WHAT is off — shape, rows, or order —
+// without ever showing the right answer's values. Learning needs informative
+// feedback; "sour note, swing again" alone teaches nothing.
+function whatsOff(r) {
+  if (r.reason === 'sql-error' || r.reason === 'rejected') {
+    const col = /no such column: ?([\w.]+)/i.exec(r.error || '');
+    if (col) return `There's no column called <b>${esc(col[1])}</b> — check the schema strip for the real names, and qualify shared ones as table.column.`;
+    const tbl = /no such table: ?([\w.]+)/i.exec(r.error || '');
+    if (tbl) return `There's no table called <b>${esc(tbl[1])}</b> — this job's tables are listed in the schema strip.`;
+    return '';
+  }
+  const es = r.expectedShape;
+  if (!es) return '';
+  const p = r.playerRes || { columns: [], values: [] };
+  if (r.reason === 'wrong-shape')
+    return `Shape check: the job wants <b>${es.cols}</b> column${es.cols === 1 ? '' : 's'} (${es.columns.map(esc).join(', ')}) — yours returned <b>${p.columns.length}</b>${p.columns.length ? ` (${p.columns.map(esc).join(', ')})` : ''}.`;
+  if (r.reason === 'wrong-order')
+    return `Right rows, wrong order — check your ORDER BY (and whether it should be DESC).`;
+  if (r.reason === 'wrong-rows' || r.reason === 'partial-rows')
+    return `Columns look right — the rows are off: yours returned <b>${p.values.length}</b>, the job wants <b>${es.rows}</b>. ${p.values.length > es.rows ? 'Too many — tighten the WHERE.' : "Too few — a filter or join is dropping rows it shouldn't."}`;
+  return '';
+}
+function diagHtml(r) {
+  const d = whatsOff(r);
+  return d ? `<div class="helpline">🧭 ${d}</div>` : '';
+}
+// Mobile-first: the payoff of hitting Execute must be visible. If the result
+// lands below the fold, bring it up — smooth where supported, snap otherwise.
+function showResult(out) {
+  if (!out) return;
+  const rect = out.getBoundingClientRect();
+  if (rect.top > innerHeight * 0.55 || rect.bottom > innerHeight) {
+    const want = Math.max(0, scrollY + rect.top - 66);
+    scrollTo({ top: want, behavior: 'smooth' });
+    setTimeout(() => { if (Math.abs(scrollY - want) > 40) scrollTo(0, want); }, 350);
+  }
+}
+
 // One card, one loop: keep running until FULL credit or three misses.
 // A "try" is any real query you run. 1st miss free, 2nd fills half the code
 // (party penalty), 3rd hands over the answer (bigger penalty + journal entry).
@@ -1309,9 +1369,14 @@ function submitAnswer() {
     const snap = snapRes();
     const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs, inputMode);
     ledgerLog('💼', `Job: ${q.title} — solved${qState.misses ? ` (${qState.misses} miss${qState.misses === 1 ? '' : 'es'})` : ' clean'}, ${inputMode === 'type' ? '⌨ typed (+25% pay)' : '👆 built'}`, snap);
+    // Clean-solve streak: momentum a player can feel (cosmetic — no pay change).
+    run.streak = qState.misses === 0 ? (run.streak || 0) + 1 : 0;
     celebrate('win'); refreshStat();
+    if (run.streak >= 3) fxBurst(['🔥','⭐','🤠'], 18, { center: true, min: 20, spread: 20 });
+    const streakChip = run.streak >= 2
+      ? `<p class="center"><span class="tag" style="font-size:1.05em">🔥 ${run.streak} clean solves running!</span></p>` : '';
     screenCardResult(`${esc(pick(WIN_LINES))} You earned 🌾 ${reward.food} lbs and 💰 $${reward.coin}.`,
-      queryOutput(r, q, execMs));
+      streakChip + queryOutput(r, q, execMs));
     return;
   }
 
@@ -1321,9 +1386,10 @@ function submitAnswer() {
 
   if (qState.misses === 1) {
     celebrate('miss1');
-    out.innerHTML = queryOutput(r, q, execMs) +
+    out.innerHTML = queryOutput(r, q, execMs) + diagHtml(r) +
       `<div class="helpline"><b>${esc(pick(MISS_LINES))}</b><br>
         <span class="dim">First slip's on the house. Fix your query and run it again.</span></div>`;
+    showResult(out);
     return;
   }
 
@@ -1335,10 +1401,11 @@ function submitAnswer() {
     refreshStat();
     if (run.dead) { out.innerHTML = queryOutput(r, q, execMs); return screenTombstone(); }
     fillHalf(q);
-    out.innerHTML = queryOutput(r, q, execMs) +
+    out.innerHTML = queryOutput(r, q, execMs) + diagHtml(r) +
       `<div class="helpline"><b>${esc(pick(MISS_LINES))}</b><br>
         <span class="dim">The party pays for this one — everyone's worse for wear (−10 health).
         I dropped the first half of the answer in your editor. Finish the rest and run it.</span></div>`;
+    showResult(out);
     return;
   }
 
@@ -1362,6 +1429,7 @@ function submitAnswer() {
       <span class="dim">That one cost the party dearly (−18 health, −10 food). Here's the full answer, dropped in your
       editor — run it to watch it work. <b>${esc(q.concept)}</b> was added to your Trail Journal to brush up on.</span></div>
     <button class="primary" onclick="afterCard()">Continue ▸</button>`;
+  showResult(out);
 }
 
 // One card per town: after it resolves, the town's extras open up (store,
@@ -1518,8 +1586,9 @@ function submitForage() {
       `<p class="amber">${esc(pick(WIN_LINES))} You haul back 🌾 ${lbs} lbs.</p>
        <button class="primary" onclick="screenTownExtras()">Back to town ▸</button>`;
   } else {
-    out.innerHTML = queryOutput(r, forageCard, 1) +
+    out.innerHTML = queryOutput(r, forageCard, 1) + diagHtml(r) +
       `<p class="dim">Not it — the clock's running. Adjust and go again.</p>`;
+    showResult(out);
   }
 }
 

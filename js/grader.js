@@ -144,6 +144,8 @@
       cmp.playerRes = playerRes;
       cmp.rowsAffected = rowsAffected;
       cmp.schemaAfter = snapshotSchema(dbP);
+      // Shape of the right answer (never its values) — fuels diagnostic coaching.
+      cmp.expectedShape = { rows: expectedRes.values.length, cols: expectedRes.columns.length, columns: expectedRes.columns };
       return cmp;
     } catch (e) {
       return { tier: TIER.FAIL, reason: 'sql-error', error: e.message, overlap: 0 };

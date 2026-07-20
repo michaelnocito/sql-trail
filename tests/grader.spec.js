@@ -111,6 +111,12 @@ function check(name, cond, detail) {
   check('lone survivor travels 2 days faster per leg', Engine.legDays(soloRun) === duoDays - 2);
   check('legDays never drops below 1', Engine.legDays(soloRun, 'grueling') >= 1);
 
+  const shapeCard = Content.CARD_POOL.find(c => c.id === 'sel-cols');
+  const shapeR = Grader.grade(SQL, Content.SEED_SQL, shapeCard, 'SELECT item FROM supplies');
+  check('grade exposes expected shape for coaching',
+    shapeR.expectedShape && shapeR.expectedShape.cols === 2 && shapeR.expectedShape.rows === 9
+    && shapeR.expectedShape.columns.join(',') === 'item,qty');
+
   const bonus = Engine.arrivalBonus(run);
   check('arrival bonus is health/food/coin', bonus.parts.length === 3 && bonus.parts[0].label === 'Health' && bonus.parts[0].value === Math.round(run.health * 3));
 
