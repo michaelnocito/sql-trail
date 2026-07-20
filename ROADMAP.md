@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 37 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 39 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,10 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Batch 8.11 — Ledger auto-open on death + Duolingo trail progress (SHIPPED builds 38–39)
+- **Build 38** — the 📒 decision ledger auto-opens 2.4s after each character death (after the send-off fx), so the player sees the chain of choices that led there.
+- **Build 39** — "🗺️ Trail progress": a Duolingo-style skill path matching the APK SQL kit's pmap pattern (vertical rail, done/current/practiced/upcoming states, nothing locked). Nine towns = nine SQL skills; a skill goes green when solved CLEAN (0 misses) on any run. Persistent store `sql-trail-progress-v1` {concepts:{seen,solved,clean}, bestTown, runs} accumulates across runs; hooks in startRun (runs++), startCard (seen), screenArrival (bestTown), submitAnswer full-credit (solved/clean). Top summary "N of 9 mastered" + green progress bar; tap a stop → its guideBlurb. Entry buttons on title + Journey Report (returns via _progReturn). New CSS: .tpath/.tnode/.tdot/.progbar in parchment palette (green mastered, rust current, gold practiced, dimmed upcoming).
 
 ### Batch 8.10 — Top-to-bottom review: 5 low-friction/learning picks (SHIPPED build 37)
 Full review (content, graphics, mobile playtest at 375×812). Findings that shipped:

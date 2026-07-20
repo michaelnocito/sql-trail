@@ -239,6 +239,28 @@
     tr.pick td { padding: 12px 8px; }
   }
 
+  /* --- Trail progress: Duolingo-style vertical skill rail (parchment) ---
+     States: done (mastered, green) / current (highlighted) / practiced (gold) /
+     seen / up (dimmed). Nothing is locked — dimmed just means it's up the trail. */
+  .progbar { height: 12px; background: #eadfc9; border: 1px solid #d8cbb4; border-radius: 999px; overflow: hidden; }
+  .progbar > i { display: block; height: 100%; background: #4e8c3a; transition: width .5s; }
+  .tpath { position: relative; margin: 8px 0 4px; }
+  .tpath:before { content: ''; position: absolute; left: 27px; top: 12px; bottom: 12px; width: 3px; background: #e2d5bc; border-radius: 2px; }
+  .tnode { display: flex; gap: 14px; align-items: flex-start; position: relative; padding: 12px 12px 12px 8px; margin: 6px 0; border-radius: 12px; cursor: pointer; transition: .15s; }
+  .tnode:hover .ttitle { color: var(--accent); }
+  .tdot { width: 40px; height: 40px; border-radius: 50%; background: #eadfc9; color: var(--brown); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; border: 2px solid #d8cbb4; position: relative; z-index: 1; }
+  .tnode.done .tdot { background: #4e8c3a; border-color: #4e8c3a; color: #fff; }
+  .tnode.practiced .tdot { background: var(--gold); border-color: var(--brown); color: var(--brown-dark); }
+  .tnode.current { background: var(--card); border: 1.5px solid var(--accent); box-shadow: 0 1px 6px rgba(90,70,50,.18); }
+  .tnode.current .tdot { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 0 5px rgba(168,80,44,.16); }
+  .tnode.up { opacity: .5; } .tnode.up:hover { opacity: .85; }
+  .ttitle { font-weight: 700; font-family: Georgia, serif; }
+  .tconcept { font-size: .9em; color: var(--brown-dark); margin: 1px 0; }
+  .tmaster { display: inline-block; font-size: .78em; padding: 1px 9px; border-radius: 999px; background: #eadfc9; color: var(--brown-dark); margin-top: 3px; }
+  .tnode.done .tmaster { background: #d9ecc9; color: #2f5a20; }
+  .tnode.current .tmaster { background: var(--gold); }
+  #progTip:empty { display: none; }
+
   /* HP bar: smooth fill, hit pulse when a member just took damage */
   .hbar-fill { transition: width .45s ease, background .3s; }
   .hbar.hit { animation: hbarhit .55s ease; }
@@ -454,7 +476,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 38;
+const BUILD = 39;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -851,9 +873,56 @@ function screenTitle() {
     </div>
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Head west ▸</button>
+      <button onclick="_progReturn=screenTitle;screenProgress()">🗺️ Trail progress</button>
       <button onclick="screenHistory()">Journey records</button>
       <button onclick="screenBoard()">🏆 Leaderboard</button>
     </div>`;
+}
+
+// Duolingo-style trail progress: the 9 towns as a skill path, mastery tracked
+// across every run. Nothing locked — the highlighted node is where you are.
+let _progReturn = screenTitle;
+function screenProgress() {
+  const p = loadProgress();
+  const active = (typeof run !== 'undefined' && run && !run.dead) ? run.stop : null;
+  const mastered = C.STOPS.filter(s => (p.concepts[s.concept] && p.concepts[s.concept].clean) > 0).length;
+  const pct = Math.round(mastered / C.STOPS.length * 100);
+  let curIdx = active ? active - 1 : C.STOPS.findIndex(s => !((p.concepts[s.concept] && p.concepts[s.concept].clean) > 0));
+  if (curIdx < 0) curIdx = C.STOPS.length - 1;
+  const nodes = C.STOPS.map((s, i) => {
+    const cc = p.concepts[s.concept] || { seen: 0, solved: 0, clean: 0 };
+    const done = cc.clean > 0, practiced = !done && cc.solved > 0;
+    const reached = done || practiced || (active && i < active) || p.bestTown >= s.id;
+    const isCur = i === curIdx;
+    const state = isCur ? 'current' : done ? 'done' : practiced ? 'practiced' : reached ? 'seen' : 'up';
+    const master = done ? `✔ Mastered — clean solve${cc.clean > 1 ? ` ×${cc.clean}` : ''}`
+      : practiced ? `Solved ${cc.solved}× — no clean run yet`
+      : reached ? 'Reached — not solved yet' : 'Up the trail';
+    return `<div class="tnode ${state}" onclick="progTip('${s.concept.replace(/'/g, "\\'")}')">
+      <div class="tdot">${done ? '✓' : practiced ? '◐' : s.tier}</div>
+      <div class="tinfo">
+        <div class="ttitle">Town ${s.id} · ${esc(s.name)}${isCur && active ? ' <span class="dim">— you\'re here</span>' : ''}</div>
+        <div class="tconcept">${esc(s.concept)} ${dpips(s.tier)}</div>
+        <span class="tmaster">${master}</span>
+      </div></div>`;
+  }).join('');
+  app.innerHTML = `
+    <h2>🗺️ Your Trail — SQL progress</h2>
+    <div class="panel">
+      <p class="dim" style="margin:0 0 10px">Nine towns, nine SQL skills. A skill turns <b style="color:#4e8c3a">green</b> once you solve its job <b>clean</b> (no misses) on any run. Nothing's locked — dimmed just means it's up ahead. Tap a stop to see what it teaches.</p>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">
+        <b>${mastered} of ${C.STOPS.length} skills mastered</b>
+        <span class="dim">${p.runs || 0} run${p.runs === 1 ? '' : 's'} on the trail</span>
+      </div>
+      <div class="progbar"><i style="width:${pct}%"></i></div>
+    </div>
+    <div id="progTip"></div>
+    <div class="tpath">${nodes}</div>
+    <div class="center"><button class="primary" onclick="_progReturn()">◂ Back</button></div>`;
+}
+function progTip(concept) {
+  const el = document.getElementById('progTip');
+  if (el) el.innerHTML = `<div class="helpline">📖 <b>${esc(concept)}</b> — ${esc(guideBlurb(concept))}</div>`;
 }
 
 function screenOutfit() {
@@ -886,12 +955,30 @@ function screenOutfit() {
   upd();
 }
 
+// ---------- persistent skill progress (Duolingo-style trail path) ----------
+// One record across ALL runs, keyed by concept: seen / solved / clean (0-miss).
+// A concept is "mastered" once you've solved its job clean at least once.
+const PROGRESS_KEY = 'sql-trail-progress-v1';
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)) || { concepts: {}, bestTown: 0, runs: 0 }; }
+  catch { return { concepts: {}, bestTown: 0, runs: 0 }; }
+}
+function saveProgress(p) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(p)); } catch { /* full */ } }
+function progC(p, c) { return (p.concepts[c] = p.concepts[c] || { seen: 0, solved: 0, clean: 0 }); }
+function recordConceptSeen(concept) { const p = loadProgress(); progC(p, concept).seen++; saveProgress(p); }
+function recordConceptSolved(concept, misses) {
+  const p = loadProgress(); const c = progC(p, concept);
+  c.solved++; if (misses === 0) c.clean++; saveProgress(p);
+}
+function recordTownReached(town) { const p = loadProgress(); if (town > p.bestTown) { p.bestTown = town; saveProgress(p); } }
+
 function startRun() {
   const names = [0,1].map(i => document.getElementById('p' + i).value.trim() || 'Pioneer');
   const alloc = { food: +document.getElementById('aFood').value || 0 };
   try { run = E.newRun(C, names, alloc); }
   catch (e) { toast(e.message); return; }
   run.startedAt = Date.now();
+  const _p = loadProgress(); _p.runs = (_p.runs || 0) + 1; saveProgress(_p);
   run.ledger = [{ day: 0, icon: '🧾', label: `Outfitting — $${alloc.food} to food, $${run.coin} kept as coin`,
     d: { days: 0, food: run.food, coin: -alloc.food, health: run.party.map(() => 0) }, note: '' }];
   const lb = document.getElementById('ledgerBtn');
@@ -1000,6 +1087,7 @@ function doCross(choice) {
 // Landmark arrival vignette (Batch 1).
 function screenArrival() {
   const stop = C.STOPS[run.stop - 1];
+  recordTownReached(run.stop);
   const v = C.VIGNETTES[stop.id] || { art: '', flavor: '' };
   app.innerHTML = `
     ${trailMap()}${statbar()}
@@ -1142,6 +1230,7 @@ function jobSteps(cur) {
 }
 
 function startCard(i) {
+  recordConceptSeen(run._draft[i].concept);
   qState = { card: run._draft[i], misses: 0, startedAt: Date.now(), resolved: false, townId: run.stop };
   buildTokens = [];
   screenCardStory();
@@ -1372,6 +1461,7 @@ function submitAnswer() {
     const snap = snapRes();
     const reward = E.recordAnswer(run, qState.townId, q, 'full', qState.misses, timeMs, inputMode);
     ledgerLog('💼', `Job: ${q.title} — solved${qState.misses ? ` (${qState.misses} miss${qState.misses === 1 ? '' : 'es'})` : ' clean'}, ${inputMode === 'type' ? '⌨ typed (+25% pay)' : '👆 built'}`, snap);
+    recordConceptSolved(q.concept, qState.misses); // persistent skill mastery
     // Clean-solve streak: momentum a player can feel (cosmetic — no pay change).
     run.streak = qState.misses === 0 ? (run.streak || 0) + 1 : 0;
     celebrate('win'); refreshStat();
@@ -1738,6 +1828,7 @@ function screenReport(finished) {
       trends, restore, and the leaderboard live in <b>Journey records</b>.</div>
     <div class="center">
       <button class="primary" onclick="screenOutfit()">Run it again ▸</button>
+      <button onclick="_progReturn=()=>screenReport(${finished});screenProgress()">🗺️ Trail progress</button>
       <button onclick="downloadShareCard(${finished})">📷 Share card (PNG)</button>
       <button onclick="openLedger()">📒 Decision ledger</button>
       <button onclick="screenBoard()">🏆 Leaderboard</button>
