@@ -454,7 +454,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 37;
+const BUILD = 38;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -716,6 +716,9 @@ function processGraves() {
     fxBanner(`💀 ${g.name} has died of ${g.cause}`, '#3a2f22');
     fxPulse('bad');
     fxDeath(g);
+    // A death is the moment the ledger matters most: after the send-off plays,
+    // open the decision history so the player can see what led here.
+    setTimeout(openLedger, 2400);
   }
 }
 // ---------- decision ledger: every choice, its cost, on the record ----------
