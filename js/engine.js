@@ -11,7 +11,7 @@
   const PACE = { steady: 1.0, strenuous: 1.25, grueling: 1.5 };   // miles multiplier
   // Health cost per leg for pushing the pace. Only the slowest (steady) is free —
   // the middle tier now bites too, so speed always trades against the party's health.
-  const PACE_HEALTH = { steady: 0, strenuous: 3, grueling: 6 };
+  const PACE_HEALTH = { steady: 1, strenuous: 3, grueling: 6 };
   const RATIONS = { filling: 4, meager: 2.5, 'bare-bones': 1.5 }; // lbs/day
   const LEG_DAYS = 12;               // base days per leg at steady pace
   const START = { coin: 60, food: 0, health: 100 };
