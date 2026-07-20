@@ -300,11 +300,14 @@
   .tw-cloud { animation: twCloud 7s linear infinite; }
   .tw-cloud.b { animation-duration: 11s; }
   @keyframes twCloud { from { transform: translateX(0); } to { transform: translateX(-48px); } }
-  .tw-rig { animation: twRoll var(--rolldur, 2s) cubic-bezier(.2,.7,.35,1) forwards; will-change: transform; }
-  @keyframes twRoll { from { transform: translateX(-90px); } to { transform: translateX(440px); } }
-  .tw-bob { animation: twBob .38s ease-in-out infinite; }
+  /* 1985 lesson (Bouchard): a wagon crossing the screen fails to convey distance.
+     It rolls IN, trundles IN PLACE while the days tick past, then rolls OFF. */
+  .tw-rig { animation: twRoll var(--rolldur, 5s) linear forwards; will-change: transform; }
+  @keyframes twRoll { 0% { transform: translateX(-90px); } 16% { transform: translateX(112px); }
+    84% { transform: translateX(112px); } 100% { transform: translateX(470px); } }
+  .tw-bob { animation: twBob .55s ease-in-out infinite; }
   @keyframes twBob { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-1.8px); } 70% { transform: translateY(1.2px); } }
-  .tw-wheel { transform-box: fill-box; transform-origin: center; animation: twSpin .32s linear infinite; }
+  .tw-wheel { transform-box: fill-box; transform-origin: center; animation: twSpin .6s linear infinite; }
   @keyframes twSpin { to { transform: rotate(360deg); } }
   .tw-dust { transform-box: fill-box; transform-origin: center; opacity: 0; animation: twDust .9s ease-out infinite; }
   .tw-dust.d2 { animation-delay: .3s; } .tw-dust.d3 { animation-delay: .6s; }
@@ -312,7 +315,8 @@
   /* Day-night cycle: one shared timeline (--cycledur = one full day), looping.
      day → dusk (38%) → night w/ stars, moon, lantern (52-68%) → dawn (78%) → day. */
   .tw-dusk, .tw-night, .tw-stars, .tw-moon, .tw-lamp, .tw-sun {
-    animation-duration: var(--cycledur, 2.4s); animation-iteration-count: infinite; animation-timing-function: linear;
+    animation-duration: var(--cycledur, 2.4s); animation-iteration-count: var(--cycles, 1);
+    animation-timing-function: linear; /* finite: lighting ends on daylight and STOPS with the scene */
   }
   .tw-dusk  { opacity: 0; animation-name: twDusk; }
   @keyframes twDusk  { 0%,28% { opacity: 0; } 38% { opacity: .7; } 50% { opacity: 0; } 70% { opacity: 0; } 79% { opacity: .55; } 90%,100% { opacity: 0; } }
@@ -519,7 +523,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 44;
+const BUILD = 45;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -1189,9 +1193,11 @@ const TRAVEL_CRITTERS = {
 };
 
 function screenTravelAnim(pre) {
-  // Faster the pace, faster the roll — grueling legs look like it.
-  const DUR = { steady: 2400, strenuous: 2000, grueling: 1600 }[run.pace] || 2000;
   const days = run.day - pre.day, food = run.food - pre.food;
+  // Scene length comes from the data, like 1985's day tick: ~half a second per
+  // trail day. A 12-day steady leg ≈ 6s; an 8-day grueling leg ≈ 4s — pushing
+  // the pace shortens the scene on its own. Skippable throughout.
+  const DUR = Math.max(4000, Math.min(7000, days * 500));
   const dest = C.STOPS[Math.min(run.stop, 9) - 1];
 
   const srand = TrailRNG.fromVersion(`${run.version}:scene:${run.stop}`);
@@ -1202,9 +1208,10 @@ function screenTravelAnim(pre) {
   srand(); // keep the star-field draw order stable regardless of terrain source
   const wroll = TrailRNG.fromVersion(`${run.version}:weather:${run.stop}`)(); // own stream so one era can't get stuck sunny
   const weather = wroll < .25 ? 'rain' : wroll < .55 ? 'clouds' : 'clear';
-  // Day-night lighting: long legs get two sunsets, short (grueling) legs one.
-  // A full cycle never dips under ~1.1s — slow ramps, not strobing.
-  const cycles = (days >= 10 && DUR >= 2000) ? 2 : 1;
+  // Day-night lighting: roughly one sunset per four trail days, capped so a
+  // full cycle never dips under ~1.7s (slow ramps, no flicker). Finite count —
+  // the sky settles back to daylight and stops when the scene ends.
+  const cycles = Math.max(1, Math.min(3, Math.round(days / 4), Math.floor(DUR / 1700)));
   const cycleDur = Math.round(DUR / cycles);
   const stars = Array.from({ length: 12 }, () =>
     `<circle cx="${Math.round(8 + srand() * 384)}" cy="${Math.round(8 + srand() * 70)}" r="${(0.8 + srand() * 1.1).toFixed(1)}" fill="#fdf8e4"/>`).join('');
@@ -1213,7 +1220,7 @@ function screenTravelAnim(pre) {
     ${trailMap()}
     <h2>On the trail — toward ${esc(dest.name)}</h2>
     <div class="panel">
-      <div class="travelscene" style="--rolldur:${DUR}ms;--cycledur:${cycleDur}ms">
+      <div class="travelscene" style="--rolldur:${DUR}ms;--cycledur:${cycleDur}ms;--cycles:${cycles}">
         <svg viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <defs>
             <linearGradient id="duskGrad" x1="0" y1="0" x2="0" y2="1">

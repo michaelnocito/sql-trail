@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 44 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 45 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -14,6 +14,13 @@
 
 ### Batch 9 candidates (not started)
 - **Badge / achievement system** — research-first; reuse the APK SQL kit badge design as the base (carried from Batch 8 triage).
+
+### Batch 9.3 — Travel animation fix: researched pacing, 1985-style trundle (SHIPPED build 45)
+Mike on build 44: day/night glitching, lighting kept cycling after the wagon left, wagon way too fast — "actually look into the speed and stop guessing." Research: R. Philip Bouchard (the 1985 designer) wrote that moving the wagon across the screen FAILED to convey distance, so the original animates the wagon IN PLACE against the landscape (medium.com/the-philipendium "Designing the Travel Screen", died-of-dysentery.com/stories/travel-screen). Fixes, grounded in that:
+- **Wagon trundles in place**: rolls in (~16% of the scene), walks in place at center-left while the days tick, rolls off at the end. Wheels amble at .6s/turn, bob .55s.
+- **Scene length from the data**: ~0.5s per trail day (the original's day-tick cadence), clamped 4-7s — a 12-day steady leg ≈ 6s, an 8-day grueling leg ≈ 4s, so pace shortens the scene by itself. Skip stays throughout.
+- **Lighting is finite and ends on daylight**: `animation-iteration-count: var(--cycles)` (1 sunset per ~4 trail days, max 3, each cycle ≥2s) instead of `infinite` — no more cycling after the scene ends, and the longer cycles kill the fast flicker.
+Verified via computed animation timing in the browser: night layer endTime = scene duration exactly, iteration counts 3 (steady) / 2 (grueling), rig parks off-screen with fill forwards.
 
 ### Batch 9.2 — Travel animation graphical upgrade (SHIPPED build 44)
 Mike 2026-07-20: wagon animation too slow; make it fun with variance, add 24-hour lighting to show time passing, full graphical upgrade, mobile-first. Shipped (all opacity/transform-only animations, photosensitivity-safe slow ramps):
