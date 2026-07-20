@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 42 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 43 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -13,8 +13,16 @@
 ## Batches
 
 ### Batch 9 candidates (not started)
-- **Free Play mode (classic trail, no SQL)** — Mike 2026-07-20: a mode that moves you down the trail using the ORIGINAL Oregon Trail-style mechanics instead of SQL jobs, so non-SQL players can come have a play. Could be a tab right next to the Build tab, or a better placement if one emerges (recommendation: a mode choice on the title screen / outfitter, since it changes the whole run loop, not just the input method — tabs switch per-question input, this switches what "doing the job" means). Design questions to settle first: what replaces the job for pay (classic mini-events? simple choices? forage-style timing?), does it share the leaderboard (probably its own board or unranked — typed SQL runs shouldn't race dice runs), and does it feed the skill path (no). Research the original game's town/landmark activity loop before building.
 - **Badge / achievement system** — research-first; reuse the APK SQL kit badge design as the base (carried from Batch 8 triage).
+
+### Batch 9.1 — Free Play mode: classic trail, no SQL (SHIPPED build 43)
+Mike 2026-07-20: let non-SQL players come have a play using the original game's mechanics. Research (Wikipedia 1985 entry + died-of-dysentery.com design history): the classic loop = pace/rations + daily events + landmark activities (rivers, forts) + hunting for food — our game already shared everything except town earning and forage. Shipped:
+- **Mode choice on the title screen** ("🤠 Free Play — classic trail, no SQL" next to "Head west"), not an editor tab — it changes the whole run loop, not the input method. `run.mode = 'sql'|'free'`; outfitter shows a Free Play callout.
+- **Town work = classic odd jobs.** Same three-card draft, but jobs are honest labor: one per risk tier per town (Safe/Fair/Bold — freight, fences, wash water / green horses, scouting, smithy / payroll shotgun, ornery bull, steeple), seeded per version+town like the rivers, pay ramps ~12%/town. Bolder pays more; mishap odds and health cost rise with it. Mishaps still pay (the work got done) but hurt one member.
+- **Forage → the BANG hunt homage.** Three cartridges; game breaks cover after an unpredictable seeded pause, tap 💥 BANG — faster shot, more meat; over ~1.6s it bolts. 100-lb wagon carry cap, exactly as 1985 had it.
+- **Kept shared:** travel/pace/rations, rivers, stores, doctor, traders, talk-to-folks, events, party deaths, ledger, graves.
+- **Kept separate:** free runs never post to the cloud leaderboard (dice runs don't race typed SQL), don't feed the Duolingo skill path or run counter, are excluded from trend sparklines, and show "🤠 free" instead of a score in Journey records; Journey Report drops the Score/Help chips and per-town SQL table.
+131 tests green (engine untouched — free-play pay flows through applyEffects).
 
 ### Batch 8.13 — 2026-07-20 typography hierarchy + pace penalty escalation (SHIPPED build 41)
 1. **Typography / visual hierarchy (research-first pass, closes Batch 8.12 #2).** Research: hierarchy needs a modular type scale with FEW distinct sizes, and headers must differ from body in size AND weight AND spacing; small-caps "eyebrow" labels are the textbook device for marking information categories (Toptal typographic-hierarchy guide, sidebearings.com game-UI type systems, penpot readability guide). Shipped: 1.25-ratio scale (h1 1.9em/2.25 desktop, h2 1.5em/1.6 desktop with heavier weight + more top margin so sections chunk), new `.sect` eyebrow class (uppercase, letterspaced, brown) for in-panel category markers, all `label` group headers (Pace, Rations, Leader, store fields…) restyled as eyebrows (`label.dim` helper sentences exempt), card h3 up to 1.18em, Trail log header converted to `.sect`.

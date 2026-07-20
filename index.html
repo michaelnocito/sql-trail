@@ -492,7 +492,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 42;
+const BUILD = 43;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -885,10 +885,12 @@ function screenTitle() {
     </div>
     <div class="panel">
       <p>Travel the trail. At every town, pick one of three posted jobs — interview-grade SQL decides whether the party eats.</p>
+      <p class="dim">New to SQL (or just here for the trail)? 🤠 <b>Free Play</b> runs the classic way — odd jobs, a steady-hand hunt, and the same rivers, stores, and hard choices.</p>
       <p class="dim">v${C.GAME_VERSION} build ${BUILD} — three resources, seeded card draws, escalating help. Beat your own last run.</p>
     </div>
     <div class="center">
-      <button class="primary" onclick="screenOutfit()">Head west ▸</button>
+      <button class="primary" onclick="screenOutfit('sql')">Head west ▸</button>
+      <button onclick="screenOutfit('free')">🤠 Free Play — classic trail, no SQL</button>
       <button onclick="_progReturn=screenTitle;screenProgress()">🗺️ Trail progress</button>
       <button onclick="screenHistory()">Journey records</button>
       <button onclick="screenBoard()">🏆 Leaderboard</button>
@@ -941,9 +943,14 @@ function progTip(concept) {
   if (el) el.innerHTML = `<div class="helpline">📖 <b>${esc(concept)}</b> — ${esc(guideBlurb(concept))}</div>`;
 }
 
-function screenOutfit() {
+// Which trail the next run takes: 'sql' (jobs are queries) or 'free' (classic
+// odd jobs + the BANG hunt — no SQL anywhere, for players who just want the trail).
+let pendingMode = 'sql';
+function screenOutfit(mode) {
+  if (mode) pendingMode = mode === 'free' ? 'free' : 'sql';
   app.innerHTML = `
     <h2>Independence, MO — The Outfitter</h2>
+    ${pendingMode === 'free' ? `<p class="nextstep">🤠 <b>Free Play</b> — the classic trail. Town work is honest labor (no SQL), foraging is a steady-hand hunt, and runs stay off the leaderboard. Switch back on the title screen any time.</p>` : ''}
     <div class="panel">
       <p>Name your party of two. Each keeps their own health out there — the trail picks on people individually.</p>
       <div class="row">
@@ -994,7 +1001,8 @@ function startRun() {
   try { run = E.newRun(C, names, alloc); }
   catch (e) { toast(e.message); return; }
   run.startedAt = Date.now();
-  const _p = loadProgress(); _p.runs = (_p.runs || 0) + 1; saveProgress(_p);
+  run.mode = pendingMode; // 'sql' | 'free' — free runs skip SQL, skill path, and the leaderboard
+  const _p = loadProgress(); if (run.mode !== 'free') { _p.runs = (_p.runs || 0) + 1; saveProgress(_p); }
   run.ledger = [{ day: 0, icon: '🧾', label: `Outfitting — $${alloc.food} to food, $${run.coin} kept as coin`,
     d: { days: 0, food: run.food, coin: -alloc.food, health: run.party.map(() => 0) }, note: '' }];
   const lb = document.getElementById('ledgerBtn');
@@ -1113,7 +1121,7 @@ function screenArrival() {
       <pre style="margin:0;font-size:1.3em;line-height:1.3">${v.art}</pre>
       <p class="dim">${esc(v.flavor)}</p>
     </div>
-    <p class="nextstep center">Three jobs are posted in town. Take one — the pay is food and coin.</p>
+    <p class="nextstep center">${run.mode === 'free' ? 'Folks in town are hiring hands. Take some work — the pay is food and coin.' : 'Three jobs are posted in town. Take one — the pay is food and coin.'}</p>
     <div class="center"><button class="primary" onclick="screenDraft()">Look around ${esc(stop.name)} ▸</button></div>`;
 }
 
@@ -1211,7 +1219,79 @@ function drawCards(town) {
 
 function dpips(n) { return `<span class="dpips">${[1,2,3,4].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`; }
 
+// ---------- Free Play: classic odd jobs (no SQL) ----------
+// The 1985 loop earned by labor and luck, not queries. Riskier work pays more
+// but can hurt somebody; outcomes are seeded per version+town+job, so like the
+// rivers they're plannable facts across runs.
+const FREE_JOBS = [
+  { id: 'freight',  icon: '📦', risk: 1, title: 'Load freight wagons',    story: 'The depot master needs crates stacked before the noon train. Heavy, honest, boring.', reward: { food: 20, coin: 5 },  mishap: { p: .08, health: 5,  text: 'A crate corner finds a shin on the last load.' } },
+  { id: 'fences',   icon: '🔨', risk: 1, title: 'Mend corral fences',     story: 'Half the town\'s cattle got out last night. The other half are thinking about it.', reward: { food: 18, coin: 6 },  mishap: { p: .08, health: 5,  text: 'A rail springs back and raps some knuckles.' } },
+  { id: 'wash',     icon: '🪣', risk: 1, title: 'Haul wash water',        story: 'The boarding house pays by the barrel and the well is a long walk.',                 reward: { food: 22, coin: 4 },  mishap: { p: .06, health: 4,  text: 'A yoke strap snaps and the barrel wins.' } },
+  { id: 'horses',   icon: '🐎', risk: 2, title: 'Break green horses',     story: 'The livery has three horses that have opinions. The pay says how strong the opinions are.', reward: { food: 26, coin: 10 }, mishap: { p: .22, health: 10, text: 'The dun one has you off in the dust twice.' } },
+  { id: 'scout',    icon: '🧭', risk: 2, title: 'Scout the far crossing', story: 'A wagon captain wants tomorrow\'s route walked today. Rattlesnake country.',        reward: { food: 24, coin: 12 }, mishap: { p: .2,  health: 9,  text: 'You misjudge a scree slope on the way back.' } },
+  { id: 'smith',    icon: '⚒️', risk: 2, title: 'Work the smithy bellows', story: 'The blacksmith is a week behind on wheel rims and one pair of arms short.',        reward: { food: 25, coin: 11 }, mishap: { p: .18, health: 8,  text: 'Sparks find the gap above a boot.' } },
+  { id: 'shotgun',  icon: '💰', risk: 3, title: 'Ride shotgun on the payroll', story: 'The mine payroll rides at dusk and the last two escorts quit. They pay you to guess why.', reward: { food: 30, coin: 18 }, mishap: { p: .34, health: 14, text: 'Road agents test the coach at the narrows. You keep the strongbox, not your hat.' } },
+  { id: 'bull',     icon: '🐂', risk: 3, title: 'Drive the ornery bull',  story: 'Somebody has to walk the prize bull to the next ranch. The bull has not agreed.',   reward: { food: 32, coin: 15 }, mishap: { p: .32, health: 13, text: 'The bull agrees, briefly, at speed, through a hedge.' } },
+  { id: 'roof',     icon: '🏚️', risk: 3, title: 'Re-shingle the chapel steeple', story: 'Highest roof in town, worst ladder in town, best pay in town.',              reward: { food: 28, coin: 17 }, mishap: { p: .3,  health: 12, text: 'The ladder holds. The third rung doesn\'t.' } },
+];
+const FREE_RISK = { 1: 'Safe work', 2: 'Fair risk', 3: 'Bold work' };
+
+// One job per risk tier each town, seeded; pay ramps ~12%/town like the card tiers.
+function drawFreeJobs(town) {
+  const scale = v => Math.round(v * (1 + 0.12 * (town - 1)));
+  return [1, 2, 3].map(risk => {
+    const pool = FREE_JOBS.filter(j => j.risk === risk);
+    const j = pool[Math.floor(TrailRNG.fromVersion(`${run.version}:freejob:${town}:${risk}`)() * pool.length)];
+    return { ...j, reward: { food: scale(j.reward.food), coin: scale(j.reward.coin) } };
+  });
+}
+
+function screenFreeDraft() {
+  const stop = C.STOPS[run.stop - 1];
+  const jobs = drawFreeJobs(run.stop);
+  run._draft = jobs;
+  app.innerHTML = `
+    ${statbar()}
+    <h2>${esc(stop.name)} — folks are hiring</h2>
+    ${stop.intro ? `<p class="dim">${esc(stop.intro)}</p>` : ''}
+    <div class="objective"><span class="tag">Choose one</span>Three folks want a hand today. Bolder work pays better — and goes wrong more often.</div>
+    <div class="cards">
+      ${jobs.map((j, i) => `<div class="card">
+        <div><span class="badge">${j.icon} ${FREE_RISK[j.risk]}</span> ${dpips(j.risk)}</div>
+        <h3>${esc(j.title)}</h3>
+        <div class="story">${esc(j.story)}</div>
+        <div class="reward">Pays 🌾 ${j.reward.food} lbs · 💰 $${j.reward.coin}</div>
+        <button class="primary" onclick="takeFreeJob(${i})">Take this work ▸</button>
+      </div>`).join('')}
+    </div>
+    <div class="center" style="margin-top:8px"><button onclick="talkToFolks()">🗣 Talk to folks</button></div>
+    <div id="talkOut"></div>`;
+}
+
+function takeFreeJob(i) {
+  const j = run._draft[i];
+  const roll = TrailRNG.fromVersion(`${run.version}:freeroll:${run.stop}:${j.id}`)();
+  const hurt = roll < j.mishap.p;
+  const snap = snapRes();
+  // A mishap still pays — you finished the work — but somebody paid for it too.
+  E.applyEffects(run, { food: j.reward.food, coin: j.reward.coin, health: hurt ? -j.mishap.health : 0 });
+  ledgerLog(j.icon, `${j.title} — a day's work`, snap, hurt ? j.mishap.text : '');
+  refreshStat();
+  if (run.dead) return screenTombstone();
+  if (hurt) celebrate('miss'); else celebrate('win');
+  app.innerHTML = `
+    ${statbar()}
+    <h2>${esc(C.STOPS[run.stop - 1].name)} — ${esc(j.title)}</h2>
+    <div class="panel">
+      <p class="amber">${hurt ? 'The work gets done — the hard way.' : esc(pick(WIN_LINES))}</p>
+      ${hurt ? `<p>${esc(j.mishap.text)} <span class="red">−${j.mishap.health} health.</span></p>` : `<p class="dim">A full day's work, done clean.</p>`}
+      <p>The pay lands: 🌾 <b class="amber">${j.reward.food} lbs</b> · 💰 <b class="amber">$${j.reward.coin}</b>.</p>
+      <div class="center" style="margin-top:10px"><button class="primary" onclick="afterCard()">Continue ▸</button></div>
+    </div>`;
+}
+
 function screenDraft() {
+  if (run.mode === 'free') return screenFreeDraft();
   const stop = C.STOPS[run.stop - 1];
   const cards = drawCards(run.stop);
   run._draft = cards;
@@ -1562,7 +1642,9 @@ function screenTownExtras() {
   const opts = [];
   if (C.STORES[t]) opts.push(`<button onclick="screenStore()">🛒 General store</button>`);
   if (C.TRADERS[t] && !extraDone('trader')) opts.push(`<button onclick="screenTrader()">🤝 Talk to the trader</button>`);
-  if (!extraDone('forage')) opts.push(`<button onclick="screenForage()">🌿 Forage (timed query)</button>`);
+  if (!extraDone('forage')) opts.push(run.mode === 'free'
+    ? `<button onclick="screenHunt()">🦌 Hunt (steady hand)</button>`
+    : `<button onclick="screenForage()">🌿 Forage (timed query)</button>`);
   app.innerHTML = `
     ${trailMap()}${statbar()}
     <h2>${esc(stop.name)} — before you go</h2>
@@ -1630,6 +1712,92 @@ function acceptTrade() {
   E.applyEffects(run, C.TRADERS[run.stop].effects);
   ledgerLog('🤝', 'Shook on the trader\'s deal', snap);
   markExtra('trader');
+  screenTownExtras();
+}
+
+// ---------- Free Play hunt: the BANG homage ----------
+// Three shots. Game breaks cover after an unpredictable pause; the faster the
+// trigger, the more meat. 100 lbs is all the wagon carries — like 1985 said.
+let huntState = null, huntTimer = null;
+const HUNT_GAME = [
+  { icon: '🦌', name: 'a mule deer', lbs: 45 },
+  { icon: '🐇', name: 'a jackrabbit', lbs: 14 },
+  { icon: '🦬', name: 'a stray buffalo', lbs: 70 },
+  { icon: '🦆', name: 'a fat mallard', lbs: 9 },
+];
+function screenHunt() {
+  huntState = { shot: 0, meat: 0, log: [] };
+  app.innerHTML = `
+    ${statbar()}
+    <h2>🦌 Hunting outside town</h2>
+    <div class="panel">
+      <p class="dim">Three cartridges, one evening. When game breaks cover, fire — the quicker the shot, the cleaner the kill. The wagon carries <b>100 lbs</b> at most, no matter how good the hunting gets.</p>
+      <div id="huntField" class="center" style="min-height:110px;padding:18px 0"></div>
+      <div id="huntLog"></div>
+      <div class="center"><button onclick="endHunt()">↩ Back to town</button></div>
+    </div>`;
+  nextHuntShot();
+}
+function nextHuntShot() {
+  if (!huntState) return;             // player already walked back to town
+  if (huntState.shot >= 3) return endHuntTally();
+  huntState.shot += 1;
+  const rand = TrailRNG.fromVersion(`${run.version}:hunt:${run.stop}:${huntState.shot}`);
+  const game = HUNT_GAME[Math.floor(rand() * HUNT_GAME.length)];
+  const delay = 900 + Math.floor(rand() * 2600);
+  const field = document.getElementById('huntField');
+  if (field) field.innerHTML = `<p class="dim">Shot ${huntState.shot} of 3 — hold steady…</p>`;
+  clearTimeout(huntTimer);
+  huntTimer = setTimeout(() => {
+    const f = document.getElementById('huntField');
+    if (!f) return; // player left the screen
+    huntState.shownAt = Date.now();
+    huntState.game = game;
+    f.innerHTML = `<p style="font-size:1.15em;margin:0 0 8px">${game.icon} <b>${esc(game.name)}</b> breaks cover!</p>
+      <button class="primary" style="font-size:1.3em;padding:12px 34px" onclick="fireShot()">💥 BANG</button>`;
+    huntTimer = setTimeout(() => { if (huntState && huntState.game) missShot('It hears the wagon and bolts before you fire.'); }, 1600);
+  }, delay);
+}
+function fireShot() {
+  if (!huntState || !huntState.game) return;
+  clearTimeout(huntTimer);
+  const ms = Date.now() - huntState.shownAt;
+  const g = huntState.game; huntState.game = null;
+  const lbs = Math.round(g.lbs * Math.max(.35, 1 - ms / 2200));
+  huntState.meat += lbs;
+  huntState.log.push(`💥 ${g.icon} Dropped ${g.name} in ${(ms / 1000).toFixed(2)}s — ${lbs} lbs.`);
+  renderHuntLog();
+  nextHuntShot();
+}
+function missShot(text) {
+  clearTimeout(huntTimer);
+  if (huntState) { huntState.game = null; huntState.log.push(`🌫 ${text}`); renderHuntLog(); }
+  nextHuntShot();
+}
+function renderHuntLog() {
+  const el = document.getElementById('huntLog');
+  if (el && huntState) el.innerHTML = huntState.log.map(l => `<div class="dim">${l}</div>`).join('');
+}
+function endHuntTally() {
+  const hauled = Math.min(100, huntState.meat);
+  const field = document.getElementById('huntField');
+  markExtra('forage');
+  if (hauled > 0) {
+    const snap = snapRes();
+    E.applyEffects(run, { food: hauled });
+    ledgerLog('🦌', `Hunted outside town`, snap, huntState.meat > 100 ? `${huntState.meat} lbs shot — the wagon only carries 100` : '');
+    refreshStat();
+    celebrate('win');
+  }
+  if (field) field.innerHTML = `
+    <p class="amber" style="font-size:1.08em">${hauled > 0 ? `You haul 🌾 ${hauled} lbs back to the wagon.` : 'The prairie keeps its game tonight.'}</p>
+    ${huntState.meat > 100 ? `<p class="dim">${huntState.meat} lbs shot, 100 carried — the rest feeds the coyotes.</p>` : ''}
+    <button class="primary" onclick="screenTownExtras()">Back to town ▸</button>`;
+}
+function endHunt() {
+  clearTimeout(huntTimer);
+  huntState = null;
+  markExtra('forage');
   screenTownExtras();
 }
 
@@ -1820,12 +1988,13 @@ function screenReport(finished) {
     <h2>${victory ? '🌄 You made it to Oregon — Journey Report' : 'Journey Report'}</h2>
     ${victory ? `<div class="panel crt center"><pre style="margin:0;font-size:1.2em;line-height:1.3"> 🌲🌾🌲\n 🏡🌲🌾</pre><p class="dim">The Willamette Valley. Green, wide, and yours — the books balanced.</p></div>` : ''}
     <div class="panel">
+      ${run.mode === 'free' ? '<p class="dim" style="margin:0 0 6px">🤠 Free Play run — honest labor, no SQL, off the leaderboard.</p>' : ''}
       <div class="statbar">
         <span>Time <b>${mins}</b> min</span><span>Days <b>${run.day}</b></span>
-        <span>Score <b>${m.score}</b></span><span>Help <b>${m.hints}</b></span>
+        ${run.mode === 'free' ? '' : `<span>Score <b>${m.score}</b></span><span>Help <b>${m.hints}</b></span>`}
         <span>Deaths <b>${m.deaths}</b></span>
       </div>
-      <table><tr><th>Town</th><th>Job</th><th>Solved</th><th>Misses</th><th>Time</th></tr>${rows}</table>
+      ${run.mode === 'free' ? '' : `<table><tr><th>Town</th><th>Job</th><th>Solved</th><th>Misses</th><th>Time</th></tr>${rows}</table>`}
       ${m.arrival ? `<p class="amber">Arrival bonus: +${m.arrival.total}</p><div class="dim">${m.arrival.parts.map(p => `${esc(p.label)} +${p.value}`).join(' · ')}</div>` : ''}
       ${prev ? `<p class="dim">Last run: score ${prev.score}, ${prev.mins} min — ${m.score > prev.score ? '<span class="amber">you beat it.</span>' : 'beat it next time.'}</p>` : '<p class="dim">First recorded run. This is your baseline.</p>'}
     </div>
@@ -1887,9 +2056,11 @@ function saveHistory(finished) {
   const hist = loadHistory();
   hist.push({ v: run.version, score: run.metrics.score, days: run.day,
     mins: Math.round((Date.now() - run.startedAt) / 6000) / 10,
-    hints: run.metrics.hints, deaths: run.metrics.deaths, finished, at: Date.now() });
+    hints: run.metrics.hints, deaths: run.metrics.deaths, finished, at: Date.now(),
+    ...(run.mode === 'free' ? { mode: 'free' } : {}) });
   localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(-50)));
-  TrailCloud.saveRun(run, finished, BUILD); // fire-and-forget; queues offline
+  // Free Play runs stay local — dice runs don't race typed SQL on the leaderboard.
+  if (run.mode !== 'free') TrailCloud.saveRun(run, finished, BUILD); // fire-and-forget; queues offline
 }
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; }
@@ -1933,13 +2104,14 @@ function drawTrends(runs) {
 
 function screenHistory() {
   const hist = loadHistory();
+  const sqlHist = hist.filter(h => h.mode !== 'free'); // trends track the SQL game only
   const p = TrailCloud.getPlayer();
   app.innerHTML = `
     <h2>Journey records</h2>
-    <div class="panel crt">${trendPanel(hist)}</div>
+    <div class="panel crt">${trendPanel(sqlHist)}</div>
     <div class="panel">${hist.length ? `<table>
       <tr><th>When</th><th>Score</th><th>Days</th><th>Min</th><th>Hints</th><th>Fate</th></tr>
-      ${hist.slice().reverse().map(h => `<tr><td>${new Date(h.at).toLocaleDateString()}</td><td>${h.score}</td>
+      ${hist.slice().reverse().map(h => `<tr><td>${new Date(h.at).toLocaleDateString()}</td><td>${h.mode === 'free' ? '🤠 free' : h.score}</td>
         <td>${h.days}</td><td>${h.mins}</td><td>${h.hints}</td>
         <td>${h.finished ? 'arrived' : '<span class="red">✝</span>'}</td></tr>`).join('')}
       </table>` : '<p class="dim">No runs yet. The trail keeps the books; you just have to walk it.</p>'}
@@ -1967,7 +2139,7 @@ function screenHistory() {
       <button class="primary" onclick="screenBoard()">🏆 Global leaderboard</button>
       <button onclick="screenTitle()">Back</button>
     </div>`;
-  drawTrends(hist);
+  drawTrends(sqlHist);
   loadCloudRuns(p.code);
 }
 
