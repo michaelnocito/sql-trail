@@ -189,8 +189,46 @@
     80% { opacity: 1; }
     100% { opacity: 0; transform: translateX(-50%) translateY(-12px) scale(1); }
   }
-  .fxflash { position: fixed; inset: 0; z-index: 9998; pointer-events: none; animation: fxflash .5s ease forwards; }
-  @keyframes fxflash { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
+  /* Feedback vignette: soft edge pulse, opacity-only (GPU-composited), one
+     ~420ms pulse per event and throttled in JS — stays far under the 3-flashes/s
+     photosensitivity ceiling and never strobes. */
+  .fxpulse { position: fixed; inset: 0; z-index: 9998; pointer-events: none; opacity: 0;
+    will-change: opacity; animation: fxpulse .42s ease-out forwards; }
+  .fxpulse.good { background: radial-gradient(ellipse at center, transparent 58%, rgba(64,142,60,.34) 100%); }
+  .fxpulse.bad  { background: radial-gradient(ellipse at center, transparent 58%, rgba(168,50,42,.40) 100%); }
+  @keyframes fxpulse { 0% { opacity: 0; } 28% { opacity: 1; } 100% { opacity: 0; } }
+
+  /* Death vignettes: a handful of seeded send-offs (emoji + transform/opacity only) */
+  .deathfx { position: fixed; inset: 0; z-index: 9999; pointer-events: none; }
+  .dfx { position: absolute; left: 50%; top: 50%; font-size: 54px; will-change: transform, opacity; }
+  .dfx.ghost { animation: dfxGhost 2.3s ease-out forwards; }
+  @keyframes dfxGhost { 0% { transform: translate(-50%,52vh) scale(.6); opacity: 0; } 20% { opacity: .95; }
+    60% { transform: translate(-70%,-4vh) rotate(-8deg); } 100% { transform: translate(-30%,-44vh) rotate(8deg) scale(1.15); opacity: 0; } }
+  .dfx.wheel { top: auto; bottom: 12vh; animation: dfxWheel 2.4s linear forwards; }
+  @keyframes dfxWheel { 0% { transform: translateX(-58vw) rotate(0); opacity: 1; }
+    80% { transform: translateX(38vw) rotate(1080deg); opacity: 1; } 100% { transform: translateX(46vw) rotate(1160deg) translateY(40px); opacity: 0; } }
+  .dfx.buz { top: 16vh; animation: dfxBuz 2.5s ease-in-out forwards; }
+  .dfx.buz.b2 { animation-delay: .2s; font-size: 42px; } .dfx.buz.b3 { animation-delay: .45s; font-size: 34px; }
+  @keyframes dfxBuz { 0% { transform: translateX(-46vw); opacity: 0; } 15% { opacity: 1; }
+    50% { transform: translate(14vw,-22px) scaleX(-1); } 85% { opacity: 1; } 100% { transform: translate(-40vw,-38px); opacity: 0; } }
+  .dfx.stone { animation: dfxStone 2.2s cubic-bezier(.34,1.56,.64,1) forwards; }
+  @keyframes dfxStone { 0% { transform: translate(-50%,-70vh); opacity: 0; } 30% { opacity: 1; }
+    55% { transform: translate(-50%,-50%); } 70% { transform: translate(-50%,calc(-50% - 14px)); } 82%,92% { transform: translate(-50%,-50%); opacity: 1; } 100% { transform: translate(-50%,-50%); opacity: 0; } }
+  .dfx.dust { font-size: 40px; animation: dfxDust 2.2s ease-out forwards; }
+  @keyframes dfxDust { 0%,52% { transform: translate(-50%,-40%) scale(.3); opacity: 0; } 62% { opacity: .8; } 100% { transform: translate(-130%,-70%) scale(1.7); opacity: 0; } }
+  .dfx.hat { animation: dfxHat 2.6s ease-in forwards; }
+  @keyframes dfxHat { 0% { transform: translate(-50%,-58vh) rotate(-14deg); opacity: 0; } 15% { opacity: 1; }
+    35% { transform: translate(-20%,-30vh) rotate(10deg); } 60% { transform: translate(-80%,-8vh) rotate(-10deg); } 100% { transform: translate(-50%,14vh) rotate(4deg); opacity: 1; } }
+
+  /* HP bar: smooth fill, hit pulse when a member just took damage */
+  .hbar-fill { transition: width .45s ease, background .3s; }
+  .hbar.hit { animation: hbarhit .55s ease; }
+  @keyframes hbarhit { 0%,100% { transform: scale(1); } 30% { transform: scale(1.16); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fxpulse, .dfx, .fxp { animation: none !important; opacity: 0 !important; }
+    .hbar.hit { animation: none; }
+  }
 
   /* --- Modern travel scene: SVG wagon roll --- */
   .travelscene {
@@ -395,7 +433,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 32;
+const BUILD = 33;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -522,7 +560,7 @@ const WIN_LINES = [
 ];
 // "Party" cuts both ways: your wagon party AND the celebration. Keep 'em funny.
 const MISS_LINES = [
-  'The oxen threw confetti anyway — dust off and run it again.',
+  'The oxen are unimpressed — dust off and run it again.',
   'Wrong, but with gusto! The party respects the hustle.',
   'Edgar spilled the punch. Mop up and try once more.',
   'That query wandered off the trail — round it up.',
@@ -570,27 +608,51 @@ function fxBanner(text, color) {
   document.body.appendChild(b);
   setTimeout(() => b.remove(), 2000);
 }
-function fxFlash(color) {
+// One soft vignette pulse per event — green for good, red for bad. Throttled so
+// rapid-fire events can never strobe (photosensitivity guideline: <3 flashes/s).
+let _lastPulse = 0;
+function fxPulse(kind) {
+  const now = Date.now();
+  if (now - _lastPulse < 600) return;
+  _lastPulse = now;
   const f = document.createElement('div');
-  f.className = 'fxflash';
-  f.style.background = 'radial-gradient(ellipse at center, transparent 40%, ' + color + ' 100%)';
+  f.className = 'fxpulse ' + kind;
   document.body.appendChild(f);
-  setTimeout(() => f.remove(), 520);
+  setTimeout(() => f.remove(), 470);
 }
-// Escalating spectacle: tiny nudge → carnival → fireworks; win = full confetti.
+// A handful of seeded death send-offs: ghost, rolling wheel, buzzards, tombstone, hat.
+function fxDeath(g) {
+  const kinds = ['ghost', 'wheel', 'buzzards', 'stone', 'hat'];
+  const kind = kinds[(g.name.length + g.day + (g.stop || 0)) % kinds.length];
+  const l = document.createElement('div');
+  l.className = 'deathfx';
+  l.innerHTML = {
+    ghost: '<span class="dfx ghost">👻</span>',
+    wheel: '<span class="dfx wheel">🛞</span>',
+    buzzards: '<span class="dfx buz">🦅</span><span class="dfx buz b2">🦅</span><span class="dfx buz b3">🦅</span>',
+    stone: '<span class="dfx stone">🪦</span><span class="dfx dust">💨</span>',
+    hat: '<span class="dfx hat">🤠</span>',
+  }[kind];
+  document.body.appendChild(l);
+  setTimeout(() => l.remove(), 2700);
+}
+// Wins celebrate loudly; misses must FEEL like misses — dust and tumbleweed,
+// never confetti (playtest: festive misses read as wins).
 function celebrate(kind) {
   if (kind === 'win') {
     fxBurst(['🎉','🎊','⭐','🌟','🤠','🎈','✨','🥳','🌵','🛠️'], 70, { min: 16, spread: 20 });
     fxBurst(['🎉','🎊','✨','🥳'], 24, { center: true, min: 20, spread: 22 });
     fxBanner(pick(WIN_BANNERS));
+    fxPulse('good');
   } else if (kind === 'miss1') {
-    fxBurst(['🎈','🎵','🪕'], 10, { center: true, min: 16, spread: 12 });
+    fxBurst(['🍂','💨'], 5, { center: true, min: 14, spread: 8 });
+    fxPulse('bad');
   } else if (kind === 'miss2') {
-    fxBurst(['🎪','🎭','🃏','🎲','🪗'], 28, { min: 16, spread: 16 });
-    fxFlash('rgba(176,86,44,.30)');
+    fxBurst(['🍂','💨','🌵'], 10, { min: 14, spread: 10 });
+    fxPulse('bad');
   } else { // miss3
-    fxBurst(['🎆','🎇','💥','🌋','🔥','🎯'], 58, { min: 18, spread: 22 });
-    fxFlash('rgba(168,50,42,.42)');
+    fxBurst(['💀','🌵','🪦','🍂'], 14, { min: 14, spread: 12 });
+    fxPulse('bad');
     fxBanner('THE TRAIL PROVIDES', '#5b4632');
   }
 }
@@ -620,7 +682,8 @@ function processGraves() {
     stones.push({ name: g.name, cause: g.cause, day: g.day, stop: g.stop, v: run.version, at: Date.now() });
     try { localStorage.setItem(GRAVES_KEY, JSON.stringify(stones.slice(-60))); } catch { /* full */ }
     fxBanner(`💀 ${g.name} has died of ${g.cause}`, '#3a2f22');
-    fxFlash('rgba(58,47,34,.45)');
+    fxPulse('bad');
+    fxDeath(g);
   }
 }
 // ---------- decision ledger: every choice, its cost, on the record ----------
@@ -635,6 +698,11 @@ function ledgerLog(icon, label, pre, note) {
     days: run.day - pre.day, food: run.food - pre.food, coin: run.coin - pre.coin,
     health: run.party.map((m, i) => (m.health || 0) - pre.health[i]),
   };
+  // Feedback pulse: red whenever anyone got hurt; green only for pure windfalls
+  // (something gained, nothing lost, no days burned). Trades/travel stay neutral.
+  if (d.health.some(h => h < 0)) fxPulse('bad');
+  else if ((d.food > 0 || d.coin > 0 || d.health.some(h => h > 0))
+           && d.days === 0 && d.food >= 0 && d.coin >= 0) fxPulse('good');
   run.ledger = run.ledger || [];
   run.ledger.push({ day: run.day, icon, label, d, note: note || '' });
   showConseq(icon, label, d);
@@ -694,15 +762,19 @@ function pastGravesHtml(stop) {
   </div>`;
 }
 
+let _hpPrev = {}; // member -> last rendered hp, so the bar can pulse on a hit
 function statbar() {
   const memberBar = m => {
     if (m.dead) return `<span style="background:none;border:none;padding:0">
       <span class="dim" style="text-decoration:line-through">${esc(m.name)}</span> <span class="dim">✝</span></span>`;
     const hp = Math.max(0, Math.min(100, m.health));
-    const col = hp > 50 ? '#6f9e4e' : hp > 25 ? '#c98a2c' : '#a8322a';
+    // Traffic-light health: green above 60, yellow to 30, red below.
+    const col = hp > 60 ? '#4e8c3a' : hp > 30 ? '#c9a227' : '#a8322a';
+    const hit = _hpPrev[m.name] !== undefined && hp < _hpPrev[m.name];
+    _hpPrev[m.name] = hp;
     return `<span style="background:none;border:none;padding:0">
       <span class="dim">${esc(m.name)}</span>
-      <span class="hbar" style="max-width:26vw"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
+      <span class="hbar${hit ? ' hit' : ''}" style="max-width:26vw"><span class="hbar-fill" style="width:${hp}%;background:${col}"></span></span>
       <b style="color:${col}">${hp}</b></span>`;
   };
   return `<div class="panel statbar" id="statbar">
