@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 31 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 35 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,13 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Batch 8.9 — 07-19 live-playtest feedback, builds 32–35 (SHIPPED)
+Mike's in-chat feedback, chunked into four one-at-a-time batches per his instruction:
+- **Build 32** — full-bleed lake backdrop (rails widened/thickened w/ variance, clear end bumpers, raised trestle-bridge feel via under-deck shadow + pilings); light SQL-editor theme replaces the jarring black terminal; items reskinned off wagon parts (canvas tarp, coil of rope, tin lantern, iron nails, snakebite kit, linen bandages) + LIKE lesson rewritten ('c%'); "Cartesian product" jargon removed from tagline/epitaph/town-talk; travel animation modernized (SVG wagon, spinning wheels, dust, eased roll). Fire + cornfield corner art REMOVED but kept in art/ for later reuse.
+- **Build 33** — misses no longer throw confetti (dust/tumbleweed + red edge pulse); fxPulse vignette system (opacity-only, throttled 1/600ms, <3 flashes/s photosensitivity rule, reduced-motion off) — red on any health loss, green on pure windfalls + wins; HP bars traffic-light green/yellow/red (60/30); 5 seeded death send-off animations (ghost, wheel, buzzards, tombstone, hat).
+- **Build 34** — pace/rations as tappable comparison TABLES (days/leg, lbs/day, lbs/leg, health cost); forage gets big pulsing countdown pill + "↩ Return to trail" early exit; ferry costs +1 day (label says so); lone survivor travels 2 days/leg faster. 3 new engine tests (130 total).
+- **Build 35** — join/capstone canonical answers de-aliased to full table names (tap-builder can now assemble them; half-fill no longer hands out alias syntax the pad lacks); guide mentions aliases as accepted pro shorthand; results tables width:auto so single-value results stop stretching.
 
 ### Batch 8.5 — Graphical upgrade: real art backdrop (SHIPPED build 28)
 Mike's direction: use his own art (art site michaelnocito.github.io/art) in the same faint-background fashion as the current sketches, non-intrusive to the UI. Remove the amateur-looking "black blotches" (burnt holes) and the placeholder line-art sketches; no Sitting Bull portrait.
