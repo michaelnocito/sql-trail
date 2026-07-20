@@ -100,9 +100,16 @@ function check(name, cond, detail) {
   const rB = Engine.crossRiver(runB, 2, 'ford', Content.RIVERS[2]);
   check('river outcome deterministic per version', rA.text === rB.text);
   const ferryRun = Engine.newRun(Content, ['A','B','C','D'], { food: 0 });
-  const coinBefore = ferryRun.coin;
+  const coinBefore = ferryRun.coin, dayBefore = ferryRun.day;
   Engine.crossRiver(ferryRun, 2, 'ferry', Content.RIVERS[2]);
   check('ferry spends coin', ferryRun.coin === coinBefore - Content.RIVERS[2].ferry);
+  check('ferry costs a day (safety trades time)', ferryRun.day === dayBefore + 1);
+
+  const soloRun = Engine.newRun(Content, ['A','B'], { food: 30 });
+  const duoDays = Engine.legDays(soloRun);
+  soloRun.party[1].health = 0; soloRun.party[1].dead = true;
+  check('lone survivor travels 2 days faster per leg', Engine.legDays(soloRun) === duoDays - 2);
+  check('legDays never drops below 1', Engine.legDays(soloRun, 'grueling') >= 1);
 
   const bonus = Engine.arrivalBonus(run);
   check('arrival bonus is health/food/coin', bonus.parts.length === 3 && bonus.parts[0].label === 'Health' && bonus.parts[0].value === Math.round(run.health * 3));

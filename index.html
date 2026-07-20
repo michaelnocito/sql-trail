@@ -220,6 +220,19 @@
   @keyframes dfxHat { 0% { transform: translate(-50%,-58vh) rotate(-14deg); opacity: 0; } 15% { opacity: 1; }
     35% { transform: translate(-20%,-30vh) rotate(10deg); } 60% { transform: translate(-80%,-8vh) rotate(-10deg); } 100% { transform: translate(-50%,14vh) rotate(4deg); opacity: 1; } }
 
+  /* Forage countdown: big pill, turns red and pulses under 15s */
+  .foragetop { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .forageclock { font-size: 1.35em; font-weight: 700; background: var(--brown-dark); color: #fff8ec;
+    border-radius: 999px; padding: 6px 18px; letter-spacing: 1px; }
+  .forageclock.low { background: #a8322a; animation: clockpulse 1s ease-in-out infinite; }
+  @keyframes clockpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+
+  /* Travel decision tables: clickable option rows */
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: var(--gold); }
+  tr.pick.on td { background: var(--brown-dark); color: #fff8ec; border-color: var(--brown-dark); }
+  tr.pick.on td .dim { color: #e8dcc4; }
+
   /* HP bar: smooth fill, hit pulse when a member just took damage */
   .hbar-fill { transition: width .45s ease, background .3s; }
   .hbar.hit { animation: hbarhit .55s ease; }
@@ -227,7 +240,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .fxpulse, .dfx, .fxp { animation: none !important; opacity: 0 !important; }
-    .hbar.hit { animation: none; }
+    .hbar.hit, .forageclock.low { animation: none; }
   }
 
   /* --- Modern travel scene: SVG wagon roll --- */
@@ -433,7 +446,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 33;
+const BUILD = 34;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -861,24 +874,37 @@ function startRun() {
 
 function screenTravel() {
   const next = C.STOPS[run.stop]; // stop index === next stop (0-based)
+  // Decision tables, not buttons: an analyst compares the numbers side by side.
+  const dpl = p => E.legDays(run, p);
+  const paceRows = Object.keys(E.PACE).map(p => `
+      <tr class="pick ${run.pace === p ? 'on' : ''}" onclick="run.pace='${p}';screenTravel()">
+        <td>${run.pace === p ? '✓ ' : ''}${esc(p)}</td>
+        <td class="gridnum">${dpl(p)}</td>
+        <td>${p === 'grueling' ? '−6 each, every leg' : '<span class="dim">none</span>'}</td>
+      </tr>`).join('');
+  const rationRows = Object.keys(E.RATIONS).map(r => `
+      <tr class="pick ${run.rations === r ? 'on' : ''}" onclick="run.rations='${r}';screenTravel()">
+        <td>${run.rations === r ? '✓ ' : ''}${esc(r)}</td>
+        <td class="gridnum">${E.RATIONS[r]}</td>
+        <td class="gridnum">~${Math.round(dpl(run.pace) * E.RATIONS[r])}</td>
+        <td>${r === 'bare-bones' ? '−4 each, every leg' : '<span class="dim">none</span>'}</td>
+      </tr>`).join('');
   app.innerHTML = `
     ${trailMap()}${statbar()}
     <h2>On the trail — toward ${esc(next.name)}</h2>
     <div class="panel">
       <div class="row">
-        <div><label>Pace</label>${sel('pace', Object.keys(E.PACE), run.pace)}</div>
-        <div><label>Rations</label>${sel('rations', Object.keys(E.RATIONS), run.rations)}</div>
+        <div><label>Pace — tap a row</label>
+          <table class="opttbl"><tr><th>Pace</th><th>Days/leg</th><th>Health cost</th></tr>${paceRows}</table></div>
+        <div><label>Rations — tap a row</label>
+          <table class="opttbl"><tr><th>Rations</th><th>Lbs/day</th><th>Lbs/leg*</th><th>Health cost</th></tr>${rationRows}</table></div>
       </div>
-      <p class="dim" style="margin:8px 0 0">📊 Burn rate: ~${E.burnRate(run).lbsPerLeg} lbs per leg at these settings — about <b class="amber">${E.burnRate(run).legsOfFood}</b> legs of food aboard.</p>
+      <p class="dim" style="margin:8px 0 0">*at the selected pace (${dpl(run.pace)} days per leg). 📊 Burn rate: ~${E.burnRate(run).lbsPerLeg} lbs per leg at these settings — about <b class="amber">${E.burnRate(run).legsOfFood}</b> legs of food aboard.</p>
       ${forecastHtml()}
     </div>
     <p class="nextstep center">Pick a pace and rations (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
     <div class="center"><button class="primary" onclick="doTravel()">Continue on trail ▸</button></div>
     ${logPanel()}`;
-  function sel(key, opts, cur) {
-    return opts.map(o =>
-      `<button style="min-width:110px;${o===cur?'background:var(--fg);color:var(--bg);text-shadow:none;':''}" onclick="run.${key}='${o}';screenTravel()">${o}</button>`).join('');
-  }
 }
 
 // Forecast helper: the baseline numbers an analyst needs to project ahead —
@@ -927,7 +953,7 @@ function screenRiver() {
       <div class="objective"><span class="tag">Decision</span>The river blocks the trail. Pick one way across — outcomes repeat every run, so what you learn here you can plan around.</div>
       <button onclick="doCross('ford')">Ford it (free, risky)</button>
       <button onclick="doCross('caulk')">Caulk &amp; float (free, safer)</button>
-      <button onclick="doCross('ferry')" ${run.coin < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry}, safe)</button>
+      <button onclick="doCross('ferry')" ${run.coin < river.ferry ? 'disabled' : ''}>Ferry ($${river.ferry} + 1 day, safe)</button>
       <div id="riverOut"></div>
     </div>`;
 }
@@ -1438,8 +1464,12 @@ function screenForage() {
     ${statbar()}
     <h2>🌿 Foraging — ${esc(forageCard.title)}</h2>
     <div class="panel">
-      <p class="dim">Light's fading. One easy query, ${forageCard.baseFood} lbs on the line — the faster you run it, the more you carry home.</p>
-      <div class="objective"><span class="tag">🎯 Your task · <span id="forageClock">60</span>s</span>${esc(forageCard.prompt)}</div>
+      <div class="foragetop">
+        <span class="forageclock" id="forageClockWrap">⏱ <b id="forageClock">60</b>s</span>
+        <button onclick="endForage()">↩ Return to trail</button>
+      </div>
+      <p class="dim">Light's fading. One easy query, ${forageCard.baseFood} lbs on the line — the faster you run it, the more you carry home. Head back any time.</p>
+      <div class="objective"><span class="tag">🎯 Your task</span>${esc(forageCard.prompt)}</div>
       <div id="sqlHost"></div>
       ${schemaStripHtml(forageCard)}
       <div><button class="primary" onclick="submitForage()">▶ Execute</button></div>
@@ -1451,6 +1481,7 @@ function screenForage() {
     forageLeft--;
     const el = document.getElementById('forageClock');
     if (el) el.textContent = forageLeft;
+    if (forageLeft <= 15) document.getElementById('forageClockWrap')?.classList.add('low');
     if (forageLeft <= 0) {
       clearInterval(forageTimer);
       markExtra('forage');
@@ -1461,6 +1492,12 @@ function screenForage() {
       [...document.querySelectorAll('button')].forEach(b => { if (b.textContent.includes('Execute')) b.disabled = true; });
     }
   }, 1000);
+}
+// Leave the forage early — no reward, no penalty, and the evening is spent.
+function endForage() {
+  clearInterval(forageTimer);
+  markExtra('forage');
+  screenTownExtras();
 }
 function submitForage() {
   if (forageLeft <= 0) return;

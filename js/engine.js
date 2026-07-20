@@ -120,7 +120,8 @@
     if (choice === 'ferry') {
       if (run.coin < river.ferry) return { ok: false, text: `The ferry operator wants $${river.ferry}. You're short.` };
       effects.coin = -river.ferry;
-      text = `The ferry carries you across the ${river.name} without incident. -$${river.ferry}.`;
+      effects.days = 1; // safety costs time: loading, poling, unloading
+      text = `The ferry carries you across the ${river.name} without incident. -$${river.ferry} and a day lost to loading.`;
     } else if (choice === 'caulk') {
       if (roll < 0.8) text = `You caulk the wagon and float the ${river.name} clean. Dry as a ledger.`;
       else { effects = { food: -15 }; text = `The wagon takes on water in the ${river.name}. 15 lbs of food ruined.`; }
@@ -143,11 +144,23 @@
     return { parts, total: parts.reduce((t, p) => t + p.value, 0) };
   }
 
+  // Days one leg takes at a given pace. A lone survivor moves 2 days faster —
+  // a lighter wagon and nobody to wait on (grim, but true to the trail).
+  function legDays(run, pace) {
+    const solo = living(run).length === 1;
+    return Math.max(1, Math.round(LEG_DAYS / PACE[pace || run.pace]) - (solo ? 2 : 0));
+  }
+
   // Travel one leg toward the next town. Returns the event that fired.
   function travelLeg(run) {
-    const days = Math.round(LEG_DAYS / PACE[run.pace]);
+    const solo = living(run).length === 1;
+    const days = legDays(run);
     const eaten = Math.round(days * RATIONS[run.rations]);
     run.day += days;
+    if (solo && !run._soloNoted) {
+      run._soloNoted = true;
+      run.log.push({ day: run.day, text: '🐂 The wagon rides lighter with one aboard — every leg is 2 days quicker now.' });
+    }
 
     if (run.food >= eaten) {
       run.food -= eaten;
@@ -195,14 +208,14 @@
   // Burn-rate readout: at the current pace/rations, how many legs of food are
   // left? The analyst-thinking dashboard number.
   function burnRate(run) {
-    const perLeg = Math.round(Math.round(LEG_DAYS / PACE[run.pace]) * RATIONS[run.rations]);
+    const perLeg = Math.round(legDays(run) * RATIONS[run.rations]);
     const legs = perLeg > 0 ? run.food / perLeg : Infinity;
     return { lbsPerLeg: perLeg, legsOfFood: Math.round(legs * 10) / 10 };
   }
 
   const Engine = {
     PACE, RATIONS, START, FOOD_PRICE, LEG_DAYS,
-    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate, living,
+    newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate, living, legDays,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;
   else root.TrailEngine = Engine;
