@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 41 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 42 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -19,6 +19,9 @@
 ### Batch 8.13 — 2026-07-20 typography hierarchy + pace penalty escalation (SHIPPED build 41)
 1. **Typography / visual hierarchy (research-first pass, closes Batch 8.12 #2).** Research: hierarchy needs a modular type scale with FEW distinct sizes, and headers must differ from body in size AND weight AND spacing; small-caps "eyebrow" labels are the textbook device for marking information categories (Toptal typographic-hierarchy guide, sidebearings.com game-UI type systems, penpot readability guide). Shipped: 1.25-ratio scale (h1 1.9em/2.25 desktop, h2 1.5em/1.6 desktop with heavier weight + more top margin so sections chunk), new `.sect` eyebrow class (uppercase, letterspaced, brown) for in-panel category markers, all `label` group headers (Pace, Rations, Leader, store fields…) restyled as eyebrows (`label.dim` helper sentences exempt), card h3 up to 1.18em, Trail log header converted to `.sect`.
 2. **Pace penalty on ALL tiers, escalating (Mike 2026-07-20).** `PACE_HEALTH = {steady:1, strenuous:3, grueling:6}` — every pace now costs health each leg, stepping up with speed (was steady:0 from build 40). Travel comparison table reads the same map, so no UI change needed.
+
+### Batch 8.14 — 2026-07-20 travel-screen guidance fix (SHIPPED build 42)
+Mike screenshot feedback on build 41: the "Pick a pace and rations…" line was unreadable (muted brown over the backdrop art) and appeared AFTER the choice it explains. Fixed: the line now sits above the pace/rations panel, and `.nextstep` gets its own paper backing (translucent card bg, brown left rule, full-strength dark ink) so guidance lines stay legible anywhere over the artwork. Applies to every .nextstep site, not just travel.
 
 ### Batch 8.12 — 2026-07-20 playtest triage (tracker "SQL Trail", 2 inbox notes)
 Two notes from Mike's mobile playtest, triaged one at a time:

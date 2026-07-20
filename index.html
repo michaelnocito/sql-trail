@@ -166,7 +166,13 @@
   .qdots i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--brown); background: transparent; }
   .qdots i.done { background: var(--brown); }
   .qdots i.now { background: var(--accent); border-color: var(--accent); }
-  .nextstep { color: var(--muted); font-size: .92em; margin: 4px 0 10px; }
+  /* Guidance lines often sit over the backdrop art, outside any panel — they need their own paper
+     backing and full-strength ink or they wash out (Mike couldn't read the travel-screen one). */
+  .nextstep {
+    color: var(--brown-dark); font-size: .95em; margin: 4px 0 10px;
+    background: rgba(251,247,238,.92); border-left: 3px solid var(--brown);
+    padding: 6px 10px; border-radius: 6px; display: block;
+  }
   /* stat chips inside a CRT callout go phosphor, not gold */
   .crt .statbar > span { background: transparent; border-color: #234223; color: var(--crt-fg); }
   /* tables shown inside a CRT callout (leaderboard) go phosphor too */
@@ -486,7 +492,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 41;
+const BUILD = 42;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -1016,6 +1022,7 @@ function screenTravel() {
   app.innerHTML = `
     ${trailMap()}${statbar()}
     <h2>On the trail — toward ${esc(next.name)}</h2>
+    <p class="nextstep">Pick a pace and rations below (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
     <div class="panel">
       <div class="row">
         <div><label>Pace — tap a row</label>
@@ -1026,7 +1033,6 @@ function screenTravel() {
       <p class="dim" style="margin:8px 0 0">*at the selected pace (${dpl(run.pace)} days per leg). 📊 Burn rate: ~${E.burnRate(run).lbsPerLeg} lbs per leg at these settings — about <b class="amber">${E.burnRate(run).legsOfFood}</b> legs of food aboard.</p>
       ${forecastHtml()}
     </div>
-    <p class="nextstep center">Pick a pace and rations (they trade speed against food and health), then roll on toward ${esc(next.name)}.</p>
     <div class="center"><button class="primary" onclick="doTravel()">Continue on trail ▸</button></div>
     ${logPanel()}`;
 }
