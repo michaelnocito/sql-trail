@@ -476,7 +476,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 39;
+const BUILD = 40;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -994,7 +994,7 @@ function screenTravel() {
       <tr class="pick ${run.pace === p ? 'on' : ''}" onclick="run.pace='${p}';screenTravel()">
         <td>${run.pace === p ? '✓ ' : ''}${esc(p)}</td>
         <td class="gridnum">${dpl(p)}</td>
-        <td>${p === 'grueling' ? '−6 each, every leg' : '<span class="dim">none</span>'}</td>
+        <td>${E.PACE_HEALTH[p] ? `−${E.PACE_HEALTH[p]} each, every leg` : '<span class="dim">none</span>'}</td>
       </tr>`).join('');
   const rationRows = Object.keys(E.RATIONS).map(r => `
       <tr class="pick ${run.rations === r ? 'on' : ''}" onclick="run.rations='${r}';screenTravel()">

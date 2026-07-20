@@ -9,6 +9,9 @@
     ? require('./rng.js') : root.TrailRNG;
 
   const PACE = { steady: 1.0, strenuous: 1.25, grueling: 1.5 };   // miles multiplier
+  // Health cost per leg for pushing the pace. Only the slowest (steady) is free —
+  // the middle tier now bites too, so speed always trades against the party's health.
+  const PACE_HEALTH = { steady: 0, strenuous: 3, grueling: 6 };
   const RATIONS = { filling: 4, meager: 2.5, 'bare-bones': 1.5 }; // lbs/day
   const LEG_DAYS = 12;               // base days per leg at steady pace
   const START = { coin: 60, food: 0, health: 100 };
@@ -169,7 +172,7 @@
       damageAll(run, 12); // starvation drains everyone
       run.log.push({ day: run.day, text: 'The larder ran dry on this leg. The party weakens.' });
     }
-    if (run.pace === 'grueling') damageAll(run, 6);
+    if (PACE_HEALTH[run.pace]) damageAll(run, PACE_HEALTH[run.pace]);
     if (run.rations === 'bare-bones') damageAll(run, 4);
 
     const event = run.schedule[run.stop];
@@ -214,7 +217,7 @@
   }
 
   const Engine = {
-    PACE, RATIONS, START, FOOD_PRICE, LEG_DAYS,
+    PACE, PACE_HEALTH, RATIONS, START, FOOD_PRICE, LEG_DAYS,
     newRun, travelLeg, recordAnswer, applyEffects, crossRiver, arrivalBonus, deathCause, burnRate, living, legDays,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Engine;

@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 39 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 40 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -11,6 +11,11 @@
 5. Full handoff file (HANDOFF-sql-trail-*.md) is updated; a new chat picks up the next batch from it.
 
 ## Batches
+
+### Batch 8.12 — 2026-07-20 playtest triage (tracker "SQL Trail", 2 inbox notes)
+Two notes from Mike's mobile playtest, triaged one at a time:
+1. **Middle pace tier needs a penalty too — only the slowest should be free — SHIPPED build 40.** Previously only `grueling` (fastest) cost health each leg; `steady` and `strenuous` were both free. Now `PACE_HEALTH = {steady:0, strenuous:3, grueling:6}` in engine.js (data-driven, exported), so pushing the pace at all costs the party health and speed always trades against survival. The travel comparison table's "Health cost" column reads from `E.PACE_HEALTH`, so the number the player compares matches what actually gets applied. 131 tests green.
+2. **Visual hierarchy / typography — ROADMAP (research first, next candidate).** Mike: all the info is on screen and clean, but hard to orient because "all the title headers are the same size as the text" — no textbook-style scanning of section categories. Wants game-learning-grade visual hierarchy so the eye finds the category of information fast. Needs a research pass (how learning games/textbook UIs size and weight headers vs body, scannable section chunking) before building — do NOT just bump font sizes blindly. This is a SQL-Trail-only chrome item (its own parchment/CRT design system), no cross-game applicability. Candidate for the next build once researched.
 
 ### Batch 8.11 — Ledger auto-open on death + Duolingo trail progress (SHIPPED builds 38–39)
 - **Build 38** — the 📒 decision ledger auto-opens 2.4s after each character death (after the send-off fx), so the player sees the chain of choices that led there.
