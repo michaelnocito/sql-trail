@@ -287,7 +287,9 @@
     .hbar.hit, .forageclock.low { animation: none; }
   }
 
-  /* --- Modern travel scene: SVG wagon roll --- */
+  /* --- Modern travel scene: SVG wagon roll + seeded terrain/weather + day-night cycle ---
+     Everything animates on opacity/transform ONLY (cheap on phones, honors the fxPulse
+     photosensitivity rule — lighting fades are slow ramps, never flashes). */
   .travelscene {
     position: relative; width: 100%; aspect-ratio: 20 / 9; max-height: 260px;
     border-radius: 12px; overflow: hidden; border: 1px solid #e2d5bc;
@@ -295,21 +297,46 @@
     box-shadow: inset 0 -20px 34px rgba(150,110,60,.14);
   }
   .travelscene svg { display: block; width: 100%; height: 100%; }
-  .tw-cloud { animation: twCloud 10s linear infinite; }
-  .tw-cloud.b { animation-duration: 15s; }
+  .tw-cloud { animation: twCloud 7s linear infinite; }
+  .tw-cloud.b { animation-duration: 11s; }
   @keyframes twCloud { from { transform: translateX(0); } to { transform: translateX(-48px); } }
-  .tw-rig { animation: twRoll var(--rolldur, 2.8s) cubic-bezier(.16,.72,.3,1) forwards; will-change: transform; }
-  @keyframes twRoll { from { transform: translateX(-72px); } to { transform: translateX(432px); } }
-  .tw-bob { animation: twBob .5s ease-in-out infinite; }
-  @keyframes twBob { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-1.6px); } 70% { transform: translateY(1px); } }
-  .tw-wheel { transform-box: fill-box; transform-origin: center; animation: twSpin .5s linear infinite; }
+  .tw-rig { animation: twRoll var(--rolldur, 2s) cubic-bezier(.2,.7,.35,1) forwards; will-change: transform; }
+  @keyframes twRoll { from { transform: translateX(-90px); } to { transform: translateX(440px); } }
+  .tw-bob { animation: twBob .38s ease-in-out infinite; }
+  @keyframes twBob { 0%,100% { transform: translateY(0); } 30% { transform: translateY(-1.8px); } 70% { transform: translateY(1.2px); } }
+  .tw-wheel { transform-box: fill-box; transform-origin: center; animation: twSpin .32s linear infinite; }
   @keyframes twSpin { to { transform: rotate(360deg); } }
-  .tw-dust { transform-box: fill-box; transform-origin: center; opacity: 0; animation: twDust 1.1s ease-out infinite; }
-  .tw-dust.d2 { animation-delay: .37s; } .tw-dust.d3 { animation-delay: .74s; }
-  @keyframes twDust { 0% { opacity: 0; transform: translate(0,0) scale(.4); } 25% { opacity: .5; } 100% { opacity: 0; transform: translate(-30px,-9px) scale(1.7); } }
+  .tw-dust { transform-box: fill-box; transform-origin: center; opacity: 0; animation: twDust .9s ease-out infinite; }
+  .tw-dust.d2 { animation-delay: .3s; } .tw-dust.d3 { animation-delay: .6s; }
+  @keyframes twDust { 0% { opacity: 0; transform: translate(0,0) scale(.4); } 25% { opacity: .55; } 100% { opacity: 0; transform: translate(-34px,-10px) scale(1.8); } }
+  /* Day-night cycle: one shared timeline (--cycledur = one full day), looping.
+     day → dusk (38%) → night w/ stars, moon, lantern (52-68%) → dawn (78%) → day. */
+  .tw-dusk, .tw-night, .tw-stars, .tw-moon, .tw-lamp, .tw-sun {
+    animation-duration: var(--cycledur, 2.4s); animation-iteration-count: infinite; animation-timing-function: linear;
+  }
+  .tw-dusk  { opacity: 0; animation-name: twDusk; }
+  @keyframes twDusk  { 0%,28% { opacity: 0; } 38% { opacity: .7; } 50% { opacity: 0; } 70% { opacity: 0; } 79% { opacity: .55; } 90%,100% { opacity: 0; } }
+  .tw-night { opacity: 0; animation-name: twNight; }
+  @keyframes twNight { 0%,40% { opacity: 0; } 52% { opacity: .82; } 68% { opacity: .82; } 82%,100% { opacity: 0; } }
+  .tw-stars, .tw-moon, .tw-lamp { opacity: 0; animation-name: twStars; }
+  @keyframes twStars { 0%,46% { opacity: 0; } 56% { opacity: 1; } 66% { opacity: 1; } 78%,100% { opacity: 0; } }
+  .tw-sun { animation-name: twSun; }
+  @keyframes twSun { 0% { opacity: 1; transform: translateY(0); } 34% { opacity: 1; transform: translateY(-7px); }
+    48% { opacity: 0; transform: translateY(30px); } 74% { opacity: 0; transform: translateY(30px); }
+    86% { opacity: 1; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
+  .tw-rain { animation: twRain .45s linear infinite; }
+  @keyframes twRain { from { transform: translateY(-16px); } to { transform: translateY(16px) } }
+  .tw-tumble { animation: twTumble 1.8s linear infinite; }
+  @keyframes twTumble { from { transform: translateX(440px); } to { transform: translateX(-70px); } }
+  .tw-tumbler { transform-box: fill-box; transform-origin: center; animation: twSpinB .7s linear infinite reverse; }
+  @keyframes twSpinB { to { transform: rotate(360deg); } }
+  .tw-birds { animation: twBirds 5.5s linear infinite; }
+  @keyframes twBirds { from { transform: translateX(80px); } to { transform: translateX(-220px); } }
   @media (prefers-reduced-motion: reduce) {
-    .tw-rig, .tw-bob, .tw-wheel, .tw-dust, .tw-cloud { animation: none !important; }
+    .tw-rig, .tw-bob, .tw-wheel, .tw-dust, .tw-cloud, .tw-rain, .tw-tumble, .tw-tumbler, .tw-birds,
+    .tw-dusk, .tw-night, .tw-stars, .tw-moon, .tw-lamp, .tw-sun { animation: none !important; }
     .tw-rig { transform: translateX(180px); }
+    .tw-dusk, .tw-night, .tw-stars, .tw-moon, .tw-lamp { opacity: 0 !important; }
   }
 
   /* --- Roguelite town draft cards + single health bar --- */
@@ -492,7 +519,7 @@
 <script>
 // BUILD stamps the local script URLs so index.html and its JS can never be
 // cached out of sync. Bump together with version.json on every deploy.
-const BUILD = 43;
+const BUILD = 44;
 ['js/rng.js', 'js/grader.js', 'js/builder.js', 'js/engine.js', 'js/cloud.js', 'content/content.js'].forEach(s =>
   document.write(`<script src="${s}?v=${BUILD}"><\/script>`));
 </script>
@@ -1129,24 +1156,83 @@ function screenArrival() {
 // day/miles/food readout ticks toward the (already-computed) leg result.
 // Purely cosmetic — determinism untouched. Skippable.
 let animTimer = null;
+
+// Seeded scenery: each leg draws its own country, weather, and critters — same
+// leg, same look, every run (like the rivers). All decoration, zero mechanics.
+const TRAVEL_THEMES = [
+  { id: 'prairie',
+    back: '<path d="M0 120 Q90 92 180 116 T400 110 V180 H0 Z" fill="#cdbb8f" opacity=".55"/>',
+    mid:  '<path d="M0 140 Q110 116 210 136 T400 134 V180 H0 Z" fill="#b49c68" opacity=".6"/>',
+    props: '<g fill="#8a7a4d" opacity=".7"><rect x="352" y="118" width="3" height="26"/><path d="M353.5 118 q-10 -16 0 -26 q10 10 0 26" fill="#9aa06248"/><path d="M340 122 q13 -20 13.5 -30 q14 16 1 30 z" fill="#a3a870" opacity=".8"/></g>', critters: 'birds' },
+  { id: 'mountains',
+    back: '<path d="M0 128 L52 74 L96 118 L150 62 L204 122 L258 80 L310 124 L360 92 L400 120 V180 H0 Z" fill="#9aa3ad" opacity=".6"/><path d="M141 72 L150 62 L160 73 L150 78 Z M249 90 L258 80 L268 91 L258 95 Z" fill="#f4f2ea" opacity=".9"/>',
+    mid:  '<path d="M0 142 Q100 124 200 140 T400 138 V180 H0 Z" fill="#a3927a" opacity=".6"/>',
+    props: '<g stroke="#5d6b52" stroke-width="2.4" opacity=".75"><path d="M338 144 V120 M338 126 l-8 8 M338 126 l8 8 M338 134 l-10 9 M338 134 l10 9"/><path d="M366 146 V128 M366 132 l-6 6 M366 132 l6 6 M366 139 l-8 7 M366 139 l8 7"/></g>', critters: '' },
+  { id: 'desert',
+    back: '<path d="M0 126 Q120 108 240 124 T400 118 V180 H0 Z" fill="#dcc08a" opacity=".6"/>',
+    mid:  '<path d="M0 144 Q140 128 260 142 T400 140 V180 H0 Z" fill="#cfa96a" opacity=".55"/>',
+    props: '<g fill="#7d8f57" opacity=".85"><rect x="346" y="112" width="6" height="34" rx="3"/><rect x="336" y="120" width="5" height="12" rx="2.5"/><rect x="336" y="128" width="12" height="5" rx="2.5"/><rect x="357" y="116" width="5" height="14" rx="2.5"/><rect x="352" y="126" width="10" height="5" rx="2.5"/></g><path d="M296 148 q4 -6 10 -2 q6 -5 10 1 q-4 4 -10 3 q-6 2 -10 -2 z" fill="#e8e2cf" opacity=".8"/>', critters: 'tumbleweed' },
+  { id: 'river',
+    back: '<path d="M0 122 Q100 100 200 118 T400 112 V180 H0 Z" fill="#a8b078" opacity=".55"/>',
+    mid:  '<rect x="0" y="132" width="400" height="12" fill="#8fb0ba" opacity=".7"/><path d="M20 138 h28 M96 136 h22 M180 139 h30 M280 136 h24 M352 138 h20" stroke="#e8f2f2" stroke-width="1.6" opacity=".7"/>',
+    props: '<g fill="#77894f" opacity=".75"><rect x="20" y="112" width="4" height="20"/><ellipse cx="22" cy="106" rx="10" ry="9"/></g>', critters: 'birds' },
+];
+const TRAVEL_WEATHER = {
+  clear: '<g class="tw-cloud"><ellipse cx="120" cy="34" rx="26" ry="9" fill="#fffdf6" opacity=".85"/><ellipse cx="150" cy="30" rx="17" ry="8" fill="#fffdf6" opacity=".8"/></g><g class="tw-cloud b"><ellipse cx="284" cy="52" rx="22" ry="8" fill="#fffdf6" opacity=".7"/></g>',
+  clouds: '<g class="tw-cloud"><ellipse cx="90" cy="30" rx="34" ry="11" fill="#f4efe2" opacity=".9"/><ellipse cx="128" cy="26" rx="22" ry="9" fill="#f4efe2" opacity=".85"/></g><g class="tw-cloud b"><ellipse cx="240" cy="44" rx="38" ry="12" fill="#ece5d4" opacity=".85"/><ellipse cx="330" cy="28" rx="26" ry="9" fill="#f1ead9" opacity=".8"/></g>',
+  rain: '<ellipse cx="110" cy="26" rx="60" ry="14" fill="#c9c4b6" opacity=".9"/><ellipse cx="250" cy="20" rx="76" ry="16" fill="#bfbaac" opacity=".9"/><ellipse cx="350" cy="30" rx="48" ry="12" fill="#c9c4b6" opacity=".85"/><g class="tw-rain" stroke="#9db2bc" stroke-width="1.4" opacity=".5">' +
+    Array.from({ length: 14 }, (_, i) => `<line x1="${14 + i * 28}" y1="34" x2="${9 + i * 28}" y2="52"/>`).join('') + '</g>',
+};
+const TRAVEL_CRITTERS = {
+  birds: '<g class="tw-birds" stroke="#6b5b40" stroke-width="1.6" fill="none" opacity=".8"><path d="M300 46 q4 -5 8 0 q4 -5 8 0"/><path d="M324 38 q3 -4 6 0 q3 -4 6 0"/><path d="M316 54 q3 -4 6 0 q3 -4 6 0"/></g>',
+  tumbleweed: '<g class="tw-tumble"><g class="tw-tumbler" stroke="#a08a55" fill="none" opacity=".8"><circle cx="30" cy="150" r="7" stroke-width="1.4"/><path d="M25 145 L35 155 M35 145 L25 155 M30 143 V157 M23 150 H37" stroke-width="1"/></g></g>',
+};
+
 function screenTravelAnim(pre) {
-  const DUR = 2800;
+  // Faster the pace, faster the roll — grueling legs look like it.
+  const DUR = { steady: 2400, strenuous: 2000, grueling: 1600 }[run.pace] || 2000;
   const days = run.day - pre.day, food = run.food - pre.food;
   const dest = C.STOPS[Math.min(run.stop, 9) - 1];
+
+  const srand = TrailRNG.fromVersion(`${run.version}:scene:${run.stop}`);
+  // Terrain follows the actual trail west: prairie → river country → high
+  // desert → mountains → the Willamette. Every run sees all four looks.
+  const LEG_TERRAIN = ['prairie', 'river', 'prairie', 'desert', 'river', 'desert', 'mountains', 'mountains', 'river'];
+  const theme = TRAVEL_THEMES.find(t => t.id === LEG_TERRAIN[Math.min(run.stop, 9) - 1]) || TRAVEL_THEMES[0];
+  srand(); // keep the star-field draw order stable regardless of terrain source
+  const wroll = TrailRNG.fromVersion(`${run.version}:weather:${run.stop}`)(); // own stream so one era can't get stuck sunny
+  const weather = wroll < .25 ? 'rain' : wroll < .55 ? 'clouds' : 'clear';
+  // Day-night lighting: long legs get two sunsets, short (grueling) legs one.
+  // A full cycle never dips under ~1.1s — slow ramps, not strobing.
+  const cycles = (days >= 10 && DUR >= 2000) ? 2 : 1;
+  const cycleDur = Math.round(DUR / cycles);
+  const stars = Array.from({ length: 12 }, () =>
+    `<circle cx="${Math.round(8 + srand() * 384)}" cy="${Math.round(8 + srand() * 70)}" r="${(0.8 + srand() * 1.1).toFixed(1)}" fill="#fdf8e4"/>`).join('');
 
   app.innerHTML = `
     ${trailMap()}
     <h2>On the trail — toward ${esc(dest.name)}</h2>
     <div class="panel">
-      <div class="travelscene">
+      <div class="travelscene" style="--rolldur:${DUR}ms;--cycledur:${cycleDur}ms">
         <svg viewBox="0 0 400 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-          <circle cx="332" cy="40" r="18" fill="#f7e3aa" opacity=".85"/>
-          <g class="tw-cloud"><ellipse cx="120" cy="34" rx="26" ry="9" fill="#fffdf6" opacity=".85"/><ellipse cx="150" cy="30" rx="17" ry="8" fill="#fffdf6" opacity=".8"/></g>
-          <g class="tw-cloud b"><ellipse cx="284" cy="52" rx="22" ry="8" fill="#fffdf6" opacity=".7"/></g>
-          <path d="M0 120 Q90 92 180 116 T400 110 V180 H0 Z" fill="#cdbb8f" opacity=".55"/>
-          <path d="M0 140 Q110 116 210 136 T400 134 V180 H0 Z" fill="#b49c68" opacity=".6"/>
+          <defs>
+            <linearGradient id="duskGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#f2953f"/><stop offset=".55" stop-color="#e8b06c" stop-opacity=".5"/><stop offset="1" stop-color="#e8b06c" stop-opacity="0"/>
+            </linearGradient>
+            <radialGradient id="lampGrad"><stop offset="0" stop-color="#ffd98a" stop-opacity=".9"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+          </defs>
+          <g class="tw-sun"><circle cx="332" cy="40" r="18" fill="#f7e3aa" opacity=".85"/></g>
+          ${TRAVEL_WEATHER[weather]}
+          ${theme.back}
+          ${theme.mid}
           <rect x="0" y="146" width="400" height="34" fill="#c7ab77" opacity=".6"/>
           <path d="M0 159 Q200 151 400 159" stroke="#a4854f" stroke-width="6" fill="none" opacity=".5"/>
+          ${theme.props}
+          ${TRAVEL_CRITTERS[theme.critters] || ''}
+          <rect class="tw-dusk" x="0" y="0" width="400" height="180" fill="url(#duskGrad)"/>
+          <rect class="tw-night" x="0" y="0" width="400" height="180" fill="#1d2a47"/>
+          <g class="tw-stars">${stars}</g>
+          <g class="tw-moon"><circle cx="330" cy="36" r="13" fill="#f4eed8"/><circle cx="336" cy="32" r="11" fill="#1d2a47"/></g>
           <g class="tw-rig">
             <g class="tw-bob">
               <g>
@@ -1166,6 +1252,7 @@ function screenTravelAnim(pre) {
               <path d="M69 121 h46 v10 q0 4 -4 4 h-38 q-4 0 -4 -4 z" fill="#8a6a45" stroke="#5f4830" stroke-width="1.2"/>
               <g class="tw-wheel"><circle cx="80" cy="139" r="8" fill="#efe4cd" stroke="#4f3b26" stroke-width="2.2"/><path d="M80 131 V147 M72 139 H88 M74.5 133.5 L85.5 144.5 M85.5 133.5 L74.5 144.5" stroke="#4f3b26" stroke-width="1"/></g>
               <g class="tw-wheel"><circle cx="106" cy="139" r="8" fill="#efe4cd" stroke="#4f3b26" stroke-width="2.2"/><path d="M106 131 V147 M98 139 H114 M100.5 133.5 L111.5 144.5 M111.5 133.5 L100.5 144.5" stroke="#4f3b26" stroke-width="1"/></g>
+              <circle class="tw-lamp" cx="116" cy="124" r="16" fill="url(#lampGrad)"/>
             </g>
           </g>
         </svg>
@@ -1173,13 +1260,11 @@ function screenTravelAnim(pre) {
       <div class="statbar" style="margin-top:8px">
         <span>📅 Day <b id="animDay">${pre.day}</b></span>
         <span>🌾 <b id="animFood">${pre.food}</b> lbs</span>
-        <span class="dim">${esc(run.pace)} pace · ${esc(run.rations)} rations</span>
+        <span class="dim">${esc(run.pace)} pace · ${esc(run.rations)} rations${weather === 'rain' ? ' · rain on the wind' : ''}</span>
       </div>
     </div>
     <div class="center"><button onclick="finishTravelAnim()">Skip ▸▸</button></div>
     <div id="animLog"></div>`;
-
-  document.querySelector('.tw-rig')?.style.setProperty('--rolldur', DUR + 'ms');
 
   const t0 = performance.now();
   animTimer = setInterval(() => {

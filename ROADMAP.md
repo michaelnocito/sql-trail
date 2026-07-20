@@ -1,6 +1,6 @@
 # SQL Trail Roadmap
 
-**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 43 (title screen shows it)
+**Live:** https://michaelnocito.github.io/sql-trail/ · **Current build:** 44 (title screen shows it)
 
 ## Workflow (standing)
 
@@ -14,6 +14,14 @@
 
 ### Batch 9 candidates (not started)
 - **Badge / achievement system** — research-first; reuse the APK SQL kit badge design as the base (carried from Batch 8 triage).
+
+### Batch 9.2 — Travel animation graphical upgrade (SHIPPED build 44)
+Mike 2026-07-20: wagon animation too slow; make it fun with variance, add 24-hour lighting to show time passing, full graphical upgrade, mobile-first. Shipped (all opacity/transform-only animations, photosensitivity-safe slow ramps):
+- **Faster + pace-linked roll**: 2800ms flat → steady 2400 / strenuous 2000 / grueling 1600ms; wheels spin .32s, quicker bob and dust.
+- **Day-night cycle**: sun sinks, dusk gradient, night tint with 12 seeded stars, crescent moon, and a warm lantern glow on the wagon, then dawn. Long legs get two sunsets, grueling legs one (a full cycle never dips under ~1.1s). Lighting layers sit BEHIND the wagon so the rig stays lantern-lit.
+- **Terrain follows the real trail west** (every run sees all four looks): prairie → river country → high desert → mountains → Willamette. Each theme has its own silhouettes + props (windmill/wildflowers, snow-capped peaks + pines, saguaros + longhorn skull, water band + willow).
+- **Seeded weather per leg** (own RNG stream `version:weather:stop` so one era can't get stuck sunny): clear / drifting clouds / overcast with animated rain streaks (+ "rain on the wind" in the readout). Critters: geese flocks on prairie/river, spinning tumbleweed in the desert.
+- Mobile-verified at 375×812: scene fits, no horizontal scroll, 44px Skip target. Reduced-motion shows a static day scene.
 
 ### Batch 9.1 — Free Play mode: classic trail, no SQL (SHIPPED build 43)
 Mike 2026-07-20: let non-SQL players come have a play using the original game's mechanics. Research (Wikipedia 1985 entry + died-of-dysentery.com design history): the classic loop = pace/rations + daily events + landmark activities (rivers, forts) + hunting for food — our game already shared everything except town earning and forage. Shipped:
